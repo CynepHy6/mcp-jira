@@ -1,0 +1,35 @@
+{
+    "name": "mcp-jira",
+    "version": "1.0.0",
+    "main": "build/index.js",
+    "type": "module",
+    "bin": {
+        "mcp-jira": "./build/index.js"
+    },
+    "scripts": {
+        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+        "start": "node ./build/index.js"
+    },
+    "files": [
+        "build"
+    ],
+    "keywords": [
+        "mcp",
+        "jira",
+        "cursor"
+    ],
+    "author": "",
+    "license": "ISC",
+    "description": "Modern MCP server for Jira integration with support for Jira Server/Data Center and Atlassian Cloud",
+    "devDependencies": {
+        "@types/node": "^22.10.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.7.2"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.4.0",
+        "dotenv": "^16.4.7",
+        "jira.js": "^5.2.2",
+        "zod": "^3.24.2"
+    }
+}

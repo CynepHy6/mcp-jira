@@ -1,0 +1,16 @@
+# Dependency directories
+node_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Build output
+build/
+dist/
+out/
+
+# Environment variables
+.env
+
+# Cursor
+.cursor/
