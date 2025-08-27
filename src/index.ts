@@ -17,11 +17,20 @@ try {
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import axios, { AxiosInstance } from "axios";
 import { Version2Client } from "jira.js/version2";
 import { z } from "zod";
 
 // Jira client configuration
 interface JiraConfig {
+    host: string;
+    username: string;
+    password: string;
+    apiToken?: string;
+}
+
+// Confluence client configuration
+interface ConfluenceConfig {
     host: string;
     username: string;
     password: string;
@@ -34,6 +43,16 @@ const jiraConfig: JiraConfig = {
     username: process.env.JIRA_USERNAME || "",
     password: process.env.JIRA_PASSWORD || "",
     apiToken: process.env.JIRA_API_TOKEN,
+};
+
+// Initialize Confluence client with environment variables
+const confluenceConfig: ConfluenceConfig = {
+    host: process.env.CONFLUENCE_HOST || "jira.corp.adobe.com",
+    username:
+        process.env.CONFLUENCE_USERNAME || process.env.JIRA_USERNAME || "",
+    password:
+        process.env.CONFLUENCE_PASSWORD || process.env.JIRA_PASSWORD || "",
+    apiToken: process.env.CONFLUENCE_API_TOKEN,
 };
 
 // Create Jira client instance with modern jira.js library
@@ -98,6 +117,47 @@ const createJiraClient = (): Version2Client => {
 
 const jira = createJiraClient();
 
+// Create Confluence client instance
+const createConfluenceClient = (): AxiosInstance => {
+    const config = { ...confluenceConfig };
+
+    let host = config.host;
+    if (host.includes("://")) {
+        const url = new URL(host);
+        host = url.href.replace(/\/$/, ""); // Remove trailing slash
+    } else {
+        host = `https://${host}`;
+    }
+
+    const headers: any = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+    };
+
+    if (config.apiToken) {
+        // Для Confluence Server/Data Center используем Bearer токен
+        headers.Authorization = `Bearer ${config.apiToken}`;
+    } else if (config.password) {
+        // Для обычной аутентификации используем Basic Auth
+        const authString = Buffer.from(
+            `${config.username}:${config.password}`
+        ).toString("base64");
+        headers.Authorization = `Basic ${authString}`;
+    } else {
+        throw new Error(
+            "No authentication method configured for Confluence. Please set CONFLUENCE_PASSWORD or CONFLUENCE_API_TOKEN"
+        );
+    }
+
+    return axios.create({
+        baseURL: `${host}/rest/api`,
+        headers: headers,
+        timeout: 10000,
+    });
+};
+
+const confluence = createConfluenceClient();
+
 // Helper function to format duration from seconds
 function formatDuration(seconds: number): string {
     const days = Math.floor(seconds / (8 * 3600)); // 8-час рабочий день
@@ -151,6 +211,29 @@ function validateJiraConfig(): string | null {
     return null;
 }
 
+// Helper function to validate Confluence configuration
+function validateConfluenceConfig(): string | null {
+    if (!confluenceConfig.host)
+        return "CONFLUENCE_HOST environment variable is not set";
+    if (!confluenceConfig.username)
+        return "CONFLUENCE_USERNAME environment variable is not set (should be your email)";
+
+    if (!confluenceConfig.password && !confluenceConfig.apiToken) {
+        return "Either CONFLUENCE_PASSWORD or CONFLUENCE_API_TOKEN environment variable must be set";
+    }
+
+    if (
+        confluenceConfig.apiToken &&
+        confluenceConfig.username &&
+        confluenceConfig.host.includes("atlassian.net") &&
+        !confluenceConfig.username.includes("@")
+    ) {
+        return "CONFLUENCE_USERNAME should be your email address when using API token with Atlassian Cloud";
+    }
+
+    return null;
+}
+
 // Function to test Jira authentication
 async function testJiraAuthentication(): Promise<string | null> {
     try {
@@ -173,7 +256,7 @@ async function testJiraAuthentication(): Promise<string | null> {
 
 // Create server instance
 const server = new McpServer({
-    name: "jira",
+    name: "jira-confluence",
     version: "1.0.0",
 });
 
@@ -1131,6 +1214,279 @@ server.tool(
                     {
                         type: "text",
                         text: `Error: ${(error as Error).message}`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+// Register Confluence tools
+server.tool(
+    "get-confluence-page",
+    "Get the content of a Confluence page by ID or URL",
+    {
+        pageIdOrUrl: z
+            .string()
+            .describe("The page ID (e.g., 123456) or full Confluence page URL"),
+        includeBody: z
+            .boolean()
+            .default(true)
+            .describe("Include page body content (default: true)"),
+        expandProperties: z
+            .array(z.string())
+            .optional()
+            .describe(
+                "Additional properties to expand (e.g., ['version', 'space', 'ancestors'])"
+            ),
+    },
+    async ({ pageIdOrUrl, includeBody, expandProperties }) => {
+        const configError = validateConfluenceConfig();
+        if (configError) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Confluence configuration error: ${configError}\n\nRequired environment variables:\n- CONFLUENCE_HOST: Your Confluence instance host\n- CONFLUENCE_USERNAME: Your Confluence username\n- CONFLUENCE_PASSWORD or CONFLUENCE_API_TOKEN: Your password or API token\n\nNote: If not specified, Confluence settings will fallback to Jira settings (JIRA_HOST, JIRA_USERNAME, etc.)`,
+                    },
+                ],
+            };
+        }
+
+        try {
+            let pageId: string;
+
+            console.error("Input pageIdOrUrl:", pageIdOrUrl);
+
+            // Extract page ID from URL if URL is provided
+            if (pageIdOrUrl.includes("/")) {
+                const urlMatch = pageIdOrUrl.match(/pageId[=:](\d+)/);
+                console.error("URL match result:", urlMatch);
+                if (urlMatch) {
+                    pageId = urlMatch[1];
+                } else {
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Unable to extract page ID from URL: ${pageIdOrUrl}. Please provide either a page ID (e.g., 123456) or a valid Confluence page URL.`,
+                            },
+                        ],
+                    };
+                }
+            } else {
+                pageId = pageIdOrUrl;
+            }
+
+            console.error("Extracted pageId:", pageId);
+
+            // Build expand parameters
+            const expandParams = ["space", "version"];
+            if (includeBody) {
+                expandParams.push("body.storage", "body.view");
+            }
+            if (expandProperties) {
+                expandParams.push(...expandProperties);
+            }
+
+            // First try to test authentication with spaces endpoint
+            try {
+                const spacesTest = await confluence.get("/space");
+                console.error(
+                    "Spaces test response:",
+                    spacesTest.status,
+                    spacesTest.data?.results?.length || 0,
+                    "spaces"
+                );
+            } catch (spacesError: any) {
+                console.error(
+                    "Spaces test failed:",
+                    spacesError.response?.status,
+                    spacesError.response?.statusText
+                );
+            }
+
+            // Get page content using Confluence REST API
+            const response = await confluence.get(`/content/${pageId}`, {
+                params: {
+                    expand: expandParams.join(","),
+                },
+            });
+
+            console.error(
+                "Confluence API response:",
+                JSON.stringify(response.data, null, 2)
+            );
+
+            if (!response?.data) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `Page with ID ${pageId} not found`,
+                        },
+                    ],
+                };
+            }
+
+            const pageData = response.data;
+
+            // Format page information
+            const pageInfo = [
+                `Page ID: ${pageData.id}`,
+                `Title: ${pageData.title}`,
+                `Type: ${pageData.type}`,
+                `Status: ${pageData.status}`,
+                `Space: ${pageData.space?.name} (${pageData.space?.key})`,
+                `Version: ${pageData.version?.number} (${new Date(
+                    pageData.version?.when
+                ).toLocaleString()})`,
+                `Created: ${new Date(
+                    pageData.history?.createdDate
+                ).toLocaleString()}`,
+                `Created by: ${pageData.history?.createdBy?.displayName}`,
+                `URL: ${confluenceConfig.host}/pages/viewpage.action?pageId=${pageData.id}`,
+            ];
+
+            if (includeBody && pageData.body?.storage?.value) {
+                pageInfo.push(
+                    "",
+                    "Content:",
+                    "---",
+                    pageData.body.storage.value
+                );
+            }
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: pageInfo.join("\n"),
+                    },
+                ],
+            };
+        } catch (error) {
+            console.error("Error fetching Confluence page:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to retrieve Confluence page ${pageIdOrUrl}: ${
+                            (error as Error).message
+                        }`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+server.tool(
+    "search-confluence-pages",
+    "Search for Confluence pages by title or content",
+    {
+        query: z.string().describe("Search query (title or content)"),
+        spaceKey: z
+            .string()
+            .optional()
+            .describe("Limit search to specific space (e.g., 'PROJ')"),
+        type: z
+            .enum(["page", "blogpost"])
+            .default("page")
+            .describe("Content type to search for"),
+        limit: z
+            .number()
+            .default(10)
+            .refine((val) => val <= 50, {
+                message: "Maximum 50 results allowed",
+            })
+            .describe("Maximum number of results (default: 10, max: 50)"),
+    },
+    async ({ query, spaceKey, type, limit }) => {
+        const configError = validateConfluenceConfig();
+        if (configError) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Confluence configuration error: ${configError}`,
+                    },
+                ],
+            };
+        }
+
+        try {
+            let cql = `type=${type} and text ~ "${query}"`;
+            if (spaceKey) {
+                cql += ` and space.key="${spaceKey}"`;
+            }
+
+            const response = await confluence.get("/content/search", {
+                params: {
+                    cql: cql,
+                    limit: limit,
+                    expand: "space,version,history",
+                },
+            });
+
+            if (
+                !response?.data?.results ||
+                response.data.results.length === 0
+            ) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `No pages found for query: "${query}"${
+                                spaceKey ? ` in space ${spaceKey}` : ""
+                            }`,
+                        },
+                    ],
+                };
+            }
+
+            const searchData = response.data;
+            const results = searchData.results.map((page: any) =>
+                [
+                    `ID: ${page.id}`,
+                    `Title: ${page.title}`,
+                    `Space: ${page.space?.name} (${page.space?.key})`,
+                    `URL: ${confluenceConfig.host}/pages/viewpage.action?pageId=${page.id}`,
+                    `Last modified: ${new Date(
+                        page.version?.when
+                    ).toLocaleString()}`,
+                    `Modified by: ${page.history?.lastUpdated?.by?.displayName}`,
+                    "---",
+                ].join("\n")
+            );
+
+            const summary = [
+                `Found ${
+                    searchData.results.length
+                } pages for query: "${query}"${
+                    spaceKey ? ` in space ${spaceKey}` : ""
+                }`,
+                "",
+                ...results,
+            ];
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: summary.join("\n"),
+                    },
+                ],
+            };
+        } catch (error) {
+            console.error("Error searching Confluence pages:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to search Confluence pages: ${
+                            (error as Error).message
+                        }`,
                     },
                 ],
             };
