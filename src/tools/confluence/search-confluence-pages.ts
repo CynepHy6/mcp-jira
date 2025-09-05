@@ -86,23 +86,39 @@ export const searchConfluencePagesHandler =
             ];
 
             results.forEach((result: any, index: number) => {
-                const title = result.title || "No title";
-                const space = result.space?.name || "Unknown space";
-                const spaceKey = result.space?.key || "Unknown";
-                const webui = result._links?.webui || result._links?.base || "";
+                // Confluence API возвращает данные в structure: result.content содержит основную информацию
+                const content = result.content || {};
+
+                // Очищаем заголовок от разметки поиска Confluence @@@hl@@@ и @@@endhl@@@
+                const rawTitle = content.title || result.title || "No title";
+                const title = rawTitle.replace(/@@@hl@@@|@@@endhl@@@/g, "");
+                const space =
+                    result.resultGlobalContainer?.title || "Unknown space";
+                const spaceUrl = result.resultGlobalContainer?.displayUrl || "";
+                const webui = content._links?.webui || result.url || "";
                 const url = webui
-                    ? `${confluenceConfig.host}/wiki${webui}`
+                    ? `${confluenceConfig.host}${webui}`
                     : "URL not available";
-                const lastModified = result.version?.when
-                    ? new Date(result.version.when).toLocaleDateString()
-                    : "Unknown";
-                const author = result.version?.by?.displayName || "Unknown";
+                const lastModified = result.friendlyLastModified || "Unknown";
+                const pageId = content.id || "Unknown ID";
 
                 formattedResults.push(
                     `${index + 1}. ${title}`,
-                    `   Space: ${space} (${spaceKey})`,
-                    `   Last modified: ${lastModified} by ${author}`,
+                    `   ID: ${pageId}`,
+                    `   Space: ${space} (${spaceUrl})`,
+                    `   Last modified: ${lastModified}`,
                     `   URL: ${url}`,
+                    `   Excerpt: ${
+                        result.excerpt
+                            ? result.excerpt
+                                  .replace(/@@@hl@@@|@@@endhl@@@/g, "")
+                                  .replace(/&lt;/g, "<")
+                                  .replace(/&gt;/g, ">")
+                                  .replace(/&quot;/g, '"')
+                                  .replace(/&hellip;/g, "...")
+                                  .substring(0, 150) + "..."
+                            : "No preview"
+                    }`,
                     ""
                 );
             });

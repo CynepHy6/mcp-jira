@@ -33,5 +33,8 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/build/'
-  ]
+  ],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
+  }
 };

@@ -5,7 +5,7 @@ import {
     validateJiraConfig,
     type ConfluenceConfig,
     type JiraConfig,
-} from "../../src/utils/validation";
+} from "../../src/utils/validation.js";
 
 describe("Configuration Validation", () => {
     describe("Jira Configuration Validation", () => {

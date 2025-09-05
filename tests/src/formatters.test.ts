@@ -7,7 +7,7 @@ import {
     type Comment,
     type JiraIssue,
     type SearchResponse,
-} from "../../src/utils/formatters";
+} from "../../src/utils/formatters.js";
 
 describe("Formatters", () => {
     const JIRA_HOST = "https://test-jira.example.com";

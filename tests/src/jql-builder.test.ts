@@ -4,7 +4,7 @@ import {
     buildSearchJQL,
     buildWorklogJQL,
     buildWorklogJQLForUser,
-} from "../../src/utils/jql-builder";
+} from "../../src/utils/jql-builder.js";
 
 describe("JQL Query Building", () => {
     describe("buildSearchJQL", () => {

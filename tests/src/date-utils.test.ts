@@ -6,7 +6,7 @@ import {
     formatDuration,
     getDateRange,
     getDateRangeByDays,
-} from "../../src/utils/date-utils";
+} from "../../src/utils/date-utils.js";
 
 describe("Date Utilities", () => {
     describe("formatDate", () => {
