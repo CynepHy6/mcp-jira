@@ -1,6 +1,6 @@
 // Фикстуры ответов от Jira API для тестов
 
-exports.mockSearchResponse = {
+export const mockSearchResponse = {
     issues: [
         {
             key: "VIM-26407",
@@ -40,14 +40,14 @@ exports.mockSearchResponse = {
     maxResults: 50,
 };
 
-exports.mockEmptySearchResponse = {
+export const mockEmptySearchResponse = {
     issues: [],
     total: 0,
     startAt: 0,
     maxResults: 50,
 };
 
-exports.mockIssueResponse = {
+export const mockIssueResponse = {
     key: "VIM-26407",
     fields: {
         summary: "П отмечают рекординг как uncheckable",
@@ -63,7 +63,7 @@ exports.mockIssueResponse = {
     },
 };
 
-exports.mockCommentsResponse = {
+export const mockCommentsResponse = {
     comments: [
         {
             id: "12345",
@@ -83,7 +83,7 @@ exports.mockCommentsResponse = {
     total: 2,
 };
 
-exports.mockWorklogsResponse = {
+export const mockWorklogsResponse = {
     worklogs: [
         {
             id: "10001",
@@ -104,7 +104,7 @@ exports.mockWorklogsResponse = {
     total: 1,
 };
 
-exports.mockCurrentUserResponse = {
+export const mockCurrentUserResponse = {
     accountId: "test-account-id",
     name: "test-user",
     key: "test-user",
@@ -113,7 +113,7 @@ exports.mockCurrentUserResponse = {
     active: true,
 };
 
-exports.mockErrorResponse = {
+export const mockErrorResponse = {
     errorMessages: ["Invalid JQL query"],
     errors: {},
 };

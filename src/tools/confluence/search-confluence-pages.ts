@@ -52,8 +52,9 @@ export const searchConfluencePagesHandler =
                 cqlQuery += ` AND space = "${spaceKey}"`;
             }
 
-            console.error("CQL Query:", cqlQuery);
-            console.error("Confluence host:", confluenceConfig.host);
+            // Debug logging (can be removed in production)
+            // console.error("CQL Query:", cqlQuery);
+            // console.error("Confluence host:", confluenceConfig.host);
 
             const response = await confluence.get("/search", {
                 params: {
