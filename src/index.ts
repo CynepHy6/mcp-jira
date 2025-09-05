@@ -1107,6 +1107,208 @@ server.tool(
 );
 
 server.tool(
+    "search-issues",
+    "Search for Jira issues by title (summary) or description",
+    {
+        query: z
+            .string()
+            .describe(
+                "Search query to look for in issue title and description"
+            ),
+        projectKeys: z
+            .array(z.string())
+            .optional()
+            .describe("Filter by specific project keys (optional)"),
+        status: z
+            .array(z.string())
+            .optional()
+            .describe(
+                "Filter by issue status (e.g., ['Open', 'In Progress', 'Done'])"
+            ),
+        assignee: z
+            .string()
+            .optional()
+            .describe("Filter by assignee username or 'currentUser()'"),
+        maxResults: z
+            .number()
+            .default(20)
+            .refine((val) => val <= 100, {
+                message: "Maximum 100 results allowed",
+            })
+            .describe("Maximum number of results (default: 20, max: 100)"),
+        includeDescription: z
+            .boolean()
+            .default(true)
+            .describe("Include issue description in results (default: true)"),
+    },
+    async ({
+        query,
+        projectKeys,
+        status,
+        assignee,
+        maxResults,
+        includeDescription,
+    }) => {
+        // Validate Jira configuration
+        const configError = validateJiraConfig();
+        if (configError) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Configuration error: ${configError}\n\nRequired environment variables:\n- JIRA_HOST: Your Jira instance host\n- JIRA_USERNAME: Your Jira username\n- JIRA_PASSWORD or JIRA_API_TOKEN: Your password or personal access token`,
+                    },
+                ],
+            };
+        }
+
+        try {
+            // Build JQL query for text search in summary and description
+            let jqlQuery = `(summary ~ "${query}" OR description ~ "${query}")`;
+
+            // Add project filter
+            if (projectKeys && projectKeys.length > 0) {
+                jqlQuery += ` AND project IN (${projectKeys
+                    .map((k) => `"${k}"`)
+                    .join(",")})`;
+            }
+
+            // Add status filter
+            if (status && status.length > 0) {
+                jqlQuery += ` AND status IN (${status
+                    .map((s) => `"${s}"`)
+                    .join(",")})`;
+            }
+
+            // Add assignee filter
+            if (assignee) {
+                if (assignee === "currentUser()") {
+                    jqlQuery += ` AND assignee = currentUser()`;
+                } else {
+                    jqlQuery += ` AND assignee = "${assignee}"`;
+                }
+            }
+
+            // Order by updated date (most recent first)
+            jqlQuery += ` ORDER BY updated DESC`;
+
+            console.error("JQL Query:", jqlQuery);
+            console.error("Jira host:", jiraConfig.host);
+            console.error("Search parameters:", {
+                jql: jqlQuery,
+                maxResults: maxResults,
+                startAt: 0,
+            });
+
+            // Execute search using standard search method (enhanced API might not be available on all instances)
+            const searchResults =
+                await jira.issueSearch.searchForIssuesUsingJql({
+                    jql: jqlQuery,
+                    fields: [
+                        "key",
+                        "summary",
+                        "description",
+                        "issuetype",
+                        "priority",
+                        "status",
+                        "assignee",
+                        "creator",
+                        "created",
+                        "updated",
+                        "project",
+                    ],
+                    maxResults: maxResults,
+                    startAt: 0,
+                });
+
+            if (!searchResults.issues || searchResults.issues.length === 0) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `No issues found for query: "${query}"${
+                                projectKeys
+                                    ? ` in projects: ${projectKeys.join(", ")}`
+                                    : ""
+                            }`,
+                        },
+                    ],
+                };
+            }
+
+            // Format results
+            const results: string[] = [
+                `Found ${searchResults.issues.length} issues for query: "${query}"`,
+                `${
+                    searchResults.total
+                        ? `(showing ${searchResults.issues.length} of ${searchResults.total} total)`
+                        : ""
+                }`,
+                "",
+            ];
+
+            searchResults.issues.forEach((issue, index) => {
+                const summary = issue.fields.summary || "No summary";
+                const description =
+                    issue.fields.description || "No description available";
+                const issueType =
+                    issue.fields.issuetype?.name || "Unknown type";
+                const priority = issue.fields.priority?.name || "No priority";
+                const status = issue.fields.status?.name || "Unknown status";
+                const assignee =
+                    issue.fields.assignee?.displayName || "Unassigned";
+                const project = issue.fields.project?.key || "Unknown project";
+                const created = new Date(
+                    issue.fields.created
+                ).toLocaleDateString();
+                const updated = new Date(
+                    issue.fields.updated
+                ).toLocaleDateString();
+
+                results.push(`${index + 1}. ${issue.key}: ${summary}`);
+                results.push(
+                    `   Type: ${issueType} | Priority: ${priority} | Status: ${status}`
+                );
+                results.push(`   Project: ${project} | Assignee: ${assignee}`);
+                results.push(`   Created: ${created} | Updated: ${updated}`);
+                results.push(`   URL: ${jiraConfig.host}/browse/${issue.key}`);
+
+                if (includeDescription) {
+                    const truncatedDescription =
+                        description.length > 300
+                            ? description.substring(0, 300) + "..."
+                            : description;
+                    results.push(`   Description: ${truncatedDescription}`);
+                }
+
+                results.push(""); // Empty line for separation
+            });
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: results.join("\n"),
+                    },
+                ],
+            };
+        } catch (error) {
+            console.error("Error searching Jira issues:", error);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Failed to search issues: ${
+                            (error as Error).message
+                        }`,
+                    },
+                ],
+            };
+        }
+    }
+);
+
+server.tool(
     "get-recent-worklogs",
     "Get worklogs for standard time periods (yours or a colleague's)",
     {
@@ -1188,6 +1390,7 @@ server.tool(
                     jql: jqlQuery,
                     fields: ["key", "summary", "project"],
                     maxResults: 50,
+                    startAt: 0,
                 });
 
             const taskCount = searchResults.issues?.length || 0;
