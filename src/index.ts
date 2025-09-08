@@ -21,18 +21,48 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // Import our refactored modules
 
 // Import clients
-import { createConfiguredConfluenceClient, getConfluenceConfig } from "./clients/confluence-client.js";
-import { createConfiguredJiraClient, getJiraConfig } from "./clients/jira-client.js";
+import {
+    createConfiguredConfluenceClient,
+    getConfluenceConfig,
+} from "./clients/confluence-client.js";
+import {
+    createConfiguredJiraClient,
+    getJiraConfig,
+} from "./clients/jira-client.js";
 
 // Import tool handlers
-import { getConfluencePageHandler, getConfluencePageSchema } from "./tools/confluence/get-confluence-page.js";
-import { searchConfluencePagesHandler, searchConfluencePagesSchema } from "./tools/confluence/search-confluence-pages.js";
-import { getRecentWorklogsHandler, getRecentWorklogsSchema } from "./tools/jira/get-recent-worklogs.js";
-import { getWorklogsByDaysHandler, getWorklogsByDaysSchema } from "./tools/jira/get-worklogs-by-days.js";
-import { getWorklogsHandler, getWorklogsSchema } from "./tools/jira/get-worklogs.js";
-import { readCommentsHandler, readCommentsSchema } from "./tools/jira/read-comments.js";
-import { readDescriptionHandler, readDescriptionSchema } from "./tools/jira/read-description.js";
-import { searchIssuesHandler, searchIssuesSchema } from "./tools/jira/search-issues.js";
+import {
+    getConfluencePageHandler,
+    getConfluencePageSchema,
+} from "./tools/confluence/get-confluence-page.js";
+import {
+    searchConfluencePagesHandler,
+    searchConfluencePagesSchema,
+} from "./tools/confluence/search-confluence-pages.js";
+import {
+    getRecentWorklogsHandler,
+    getRecentWorklogsSchema,
+} from "./tools/jira/get-recent-worklogs.js";
+import {
+    getWorklogsByDaysHandler,
+    getWorklogsByDaysSchema,
+} from "./tools/jira/get-worklogs-by-days.js";
+import {
+    getWorklogsHandler,
+    getWorklogsSchema,
+} from "./tools/jira/get-worklogs.js";
+import {
+    readCommentsHandler,
+    readCommentsSchema,
+} from "./tools/jira/read-comments.js";
+import {
+    readDescriptionHandler,
+    readDescriptionSchema,
+} from "./tools/jira/read-description.js";
+import {
+    searchIssuesHandler,
+    searchIssuesSchema,
+} from "./tools/jira/search-issues.js";
 
 // Initialize clients
 const jiraConfig = getJiraConfig();
@@ -70,14 +100,14 @@ async function testJiraAuthentication(): Promise<string | null> {
 // Register Jira tools
 server.tool(
     "read-description",
-    "Get the description of a Jira issue",
+    "Get the description of a Jira issue. ALWAYS use this tool FIRST when a Jira issue URL or key is mentioned in the user query to understand the full context, requirements, and business logic before proceeding with code analysis or implementation.",
     readDescriptionSchema,
     readDescriptionHandler(jira, jiraConfig) as any
 );
 
 server.tool(
     "read-comments",
-    "Get the comments for a Jira issue",
+    "Get the comments for a Jira issue. Use this tool to get additional context, clarifications, and discussions about the issue after reading the main description.",
     readCommentsSchema,
     readCommentsHandler(jira, jiraConfig) as any
 );
@@ -98,7 +128,7 @@ server.tool(
 
 server.tool(
     "search-issues",
-    "Search for Jira issues by title (summary) or description",
+    "Search for Jira issues by title (summary) or description. Use this when you need to find related issues or when working on tasks that might have dependencies on other tickets.",
     searchIssuesSchema,
     searchIssuesHandler(jira, jiraConfig) as any
 );
