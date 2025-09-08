@@ -2,6 +2,10 @@ import { Version2Client } from "jira.js/version2";
 import { z } from "zod";
 import { JiraConfig } from "../../clients/jira-client.js";
 import { formatIssueDescription } from "../../utils/formatters.js";
+import {
+    formatIssueStructure,
+    getIssueStructure,
+} from "../../utils/issue-relationships.js";
 import { validateJiraConfig } from "../../utils/validation.js";
 
 export const readDescriptionSchema = {
@@ -25,9 +29,11 @@ export const readDescriptionHandler =
         }
 
         try {
-            // Get issue data
+            // Get issue data with expanded fields for relationships
             const issue = await jira.issues.getIssue({
                 issueIdOrKey: issueKey,
+                expand: ["parent", "subtasks", "issuelinks"],
+                fields: ["*all"],
             });
 
             if (!issue) {
@@ -41,14 +47,27 @@ export const readDescriptionHandler =
                 };
             }
 
-            // Format issue description using the refactored function
+            // Get issue structure with all related tasks
+            const issueStructure = await getIssueStructure(
+                jira,
+                issueKey,
+                jiraConfig.host
+            );
+
+            // Format main issue description
             const formattedDescription = formatIssueDescription(issue as any);
+
+            // Format issue structure
+            const formattedStructure = formatIssueStructure(issueStructure);
+
+            // Combine description and structure
+            const fullResponse = `${formattedDescription}\n\n${formattedStructure}`;
 
             return {
                 content: [
                     {
                         type: "text",
-                        text: formattedDescription,
+                        text: fullResponse,
                     },
                 ],
             };
