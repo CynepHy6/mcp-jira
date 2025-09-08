@@ -15,6 +15,7 @@ export interface IssueStructure {
     epic?: RelatedIssue;
     subtasks: RelatedIssue[];
     siblings: RelatedIssue[];
+    epicStories: RelatedIssue[]; // Все истории эпика
 }
 
 /**
@@ -41,6 +42,57 @@ function convertToRelatedIssue(issue: any, host: string): RelatedIssue {
 }
 
 /**
+ * Ищет все истории (Stories) эпика через JQL поиск
+ */
+async function searchEpicStories(
+    jira: Version2Client,
+    epicKey: string,
+    host: string
+): Promise<RelatedIssue[]> {
+    try {
+        // Пробуем разные варианты поиска по Epic Link
+        const jqlQueries = [
+            `"Epic Link" = ${epicKey}`,
+            `cf[10014] = ${epicKey}`, // customfield_10014
+            `cf[10006] = ${epicKey}`, // customfield_10006
+            `project = ${epicKey.split("-")[0]} AND text ~ "${epicKey}"`, // Поиск по тексту в проекте
+        ];
+
+        for (const jql of jqlQueries) {
+            try {
+                const searchResults =
+                    await jira.issueSearch.searchForIssuesUsingJql({
+                        jql: jql,
+                        fields: [
+                            "key",
+                            "summary",
+                            "status",
+                            "issuetype",
+                            "priority",
+                        ],
+                        maxResults: 50,
+                        startAt: 0,
+                    });
+
+                if (searchResults.issues && searchResults.issues.length > 0) {
+                    return searchResults.issues.map((issue: any) =>
+                        convertToRelatedIssue(issue, host)
+                    );
+                }
+            } catch (error) {
+                console.error(`JQL query failed: ${jql}`, error);
+                continue; // Пробуем следующий запрос
+            }
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Error searching epic stories:", error);
+        return [];
+    }
+}
+
+/**
  * Получает полную структуру связанных задач для тикета
  */
 export async function getIssueStructure(
@@ -60,11 +112,24 @@ export async function getIssueStructure(
         current,
         subtasks: [],
         siblings: [],
+        epicStories: [],
     };
 
-    // Родительская задача
+    // Родительская задача (получаем с подзадачами сразу)
+    let parentIssueWithSubtasks: any = null;
     if (issue.fields?.parent) {
         structure.parent = convertToRelatedIssue(issue.fields.parent, host);
+
+        // Получаем полную информацию о родительской задаче с подзадачами
+        try {
+            parentIssueWithSubtasks = await jira.issues.getIssue({
+                issueIdOrKey: structure.parent.key,
+                expand: ["subtasks"],
+                fields: ["subtasks", "*all"],
+            });
+        } catch (error) {
+            console.error("Error fetching parent with subtasks:", error);
+        }
     }
 
     // Подзадачи
@@ -74,9 +139,14 @@ export async function getIssueStructure(
         );
     }
 
-    // Поиск эпика и других связанных задач через поля
-    // Epic Link может быть в customfield_10014 или других полях
-    const epicField = findEpicField(issue.fields);
+    // Поиск эпика через поля текущей задачи или родительской
+    let epicField = findEpicField(issue.fields);
+
+    // Если эпик не найден в текущей задаче, ищем в родительской
+    if (!epicField && parentIssueWithSubtasks) {
+        epicField = findEpicField(parentIssueWithSubtasks.fields);
+    }
+
     if (epicField) {
         try {
             if (typeof epicField === "string") {
@@ -89,34 +159,63 @@ export async function getIssueStructure(
             } else if (epicField.key) {
                 // Epic как объект
                 structure.epic = convertToRelatedIssue(epicField, host);
+            } else if (epicField.epicName) {
+                // Найдено название эпика, ищем по названию через JQL
+                const projectKey =
+                    issue.fields?.project?.key || issueKey.split("-")[0];
+                const searchResults =
+                    await jira.issueSearch.searchForIssuesUsingJql({
+                        jql: `project = "${projectKey}" AND issuetype = Epic AND summary ~ "${epicField.epicName}"`,
+                        fields: [
+                            "key",
+                            "summary",
+                            "status",
+                            "issuetype",
+                            "priority",
+                        ],
+                        maxResults: 1,
+                        startAt: 0,
+                    });
+
+                if (searchResults.issues && searchResults.issues.length > 0) {
+                    structure.epic = convertToRelatedIssue(
+                        searchResults.issues[0],
+                        host
+                    );
+                }
             }
         } catch (error) {
             console.error("Error fetching epic:", error);
         }
     }
 
-    // Если есть родительская задача, получим её подзадачи (сиблинги)
-    if (structure.parent) {
-        try {
-            const parentIssue = await jira.issues.getIssue({
-                issueIdOrKey: structure.parent.key,
-                expand: ["subtasks"],
-                fields: ["subtasks"],
-            });
+    // Эпик не найден - это нормально для задач без эпика
 
-            if (
-                parentIssue.fields?.subtasks &&
-                Array.isArray(parentIssue.fields.subtasks)
-            ) {
-                structure.siblings = parentIssue.fields.subtasks
-                    .filter((subtask: any) => subtask.key !== issueKey) // Исключаем текущую задачу
-                    .map((subtask: any) =>
-                        convertToRelatedIssue(subtask, host)
-                    );
-            }
+    // Если найден эпик, получаем все его истории
+    if (structure.epic) {
+        try {
+            const epicStories = await searchEpicStories(
+                jira,
+                structure.epic.key,
+                host
+            );
+            // Показываем все истории эпика, исключая только текущую задачу
+            structure.epicStories = epicStories.filter(
+                (story) => story.key !== structure.current.key
+            );
         } catch (error) {
-            console.error("Error fetching parent subtasks:", error);
+            console.error("Error fetching epic stories:", error);
         }
+    }
+
+    // Получаем подзадачи родительской задачи (сиблинги) из уже загруженных данных
+    if (
+        parentIssueWithSubtasks?.fields?.subtasks &&
+        Array.isArray(parentIssueWithSubtasks.fields.subtasks)
+    ) {
+        structure.siblings = parentIssueWithSubtasks.fields.subtasks
+            .filter((subtask: any) => subtask.key !== issueKey) // Исключаем текущую задачу
+            .map((subtask: any) => convertToRelatedIssue(subtask, host));
     }
 
     return structure;
@@ -130,14 +229,26 @@ function findEpicField(fields: any): any {
     const epicFields = [
         "customfield_10014", // Стандартное поле Epic Link
         "customfield_10006", // Альтернативный вариант
+        "customfield_10007", // Epic Name
         "epic",
         "epicLink",
-        "customfield_10200", // Еще один вариант
     ];
 
     for (const fieldName of epicFields) {
-        if (fields[fieldName]) {
-            return fields[fieldName];
+        const fieldValue = fields[fieldName];
+        if (fieldValue) {
+            // Найдено поле эпика
+
+            // Если это Epic Name, нужно найти соответствующий эпик
+            if (
+                fieldName === "customfield_10007" &&
+                typeof fieldValue === "string"
+            ) {
+                // Возвращаем название эпика для дальнейшего поиска
+                return { epicName: fieldValue };
+            }
+
+            return fieldValue;
         }
     }
 
@@ -159,6 +270,19 @@ export function formatIssueStructure(structure: IssueStructure): string {
         if (structure.epic.priority) {
             result += `- **Приоритет:** ${structure.epic.priority}\n`;
         }
+
+        // Показываем все истории эпика
+        if (structure.epicStories.length > 0) {
+            result += `\n#### 📚 **Истории эпика** (${structure.epicStories.length})\n`;
+            structure.epicStories.forEach((story, index) => {
+                const statusIcon = getStatusIcon(story.status);
+                result += `${index + 1}. **[${story.key}: ${story.summary}](${
+                    story.url
+                })**\n`;
+                result += `   - **Статус:** ${statusIcon} ${story.status} | **Тип:** ${story.type}\n`;
+            });
+        }
+
         result += `\n---\n\n`;
     }
 
