@@ -11,6 +11,14 @@ export interface JiraIssue {
         assignee?: { displayName: string };
         creator?: { displayName: string };
         project?: { key: string };
+        timetracking?: {
+            originalEstimate?: string;
+            remainingEstimate?: string;
+            timeSpent?: string;
+        };
+        timeoriginalestimate?: number | null;
+        timeestimate?: number | null;
+        timespent?: number | null;
         created: string;
         updated: string;
     };
@@ -78,14 +86,82 @@ export function formatIssueDescription(issue: JiraIssue): string {
     const summary = issue.fields.summary || "No summary available";
     const status = issue.fields.status?.name || "Unknown status";
     const issueType = issue.fields.issuetype?.name || "Unknown type";
+    const timeTrackingBlock = formatTimeTracking(issue);
 
-    return [
+    const resultLines = [
         `Issue: ${issue.key}`,
         `Summary: ${summary}`,
         `Type: ${issueType}`,
         `Status: ${status}`,
-        `\nDescription:\n${description}`,
-    ].join("\n");
+    ];
+
+    if (timeTrackingBlock) {
+        resultLines.push("", "Time Tracking:", timeTrackingBlock);
+    }
+
+    resultLines.push(`\nDescription:\n${description}`);
+
+    return resultLines.join("\n");
+}
+
+function formatTimeTracking(issue: JiraIssue): string | null {
+    const originalEstimate =
+        issue.fields.timetracking?.originalEstimate ||
+        formatSecondsToDuration(issue.fields.timeoriginalestimate);
+    const remainingEstimate =
+        issue.fields.timetracking?.remainingEstimate ||
+        formatSecondsToDuration(issue.fields.timeestimate);
+    const timeSpent =
+        issue.fields.timetracking?.timeSpent ||
+        formatSecondsToDuration(issue.fields.timespent);
+
+    const trackingLines: string[] = [];
+
+    if (originalEstimate) {
+        trackingLines.push(`- Original Estimate: ${originalEstimate}`);
+    }
+    if (remainingEstimate) {
+        trackingLines.push(`- Remaining Estimate: ${remainingEstimate}`);
+    }
+    if (timeSpent) {
+        trackingLines.push(`- Time Spent: ${timeSpent}`);
+    }
+
+    return trackingLines.length > 0 ? trackingLines.join("\n") : null;
+}
+
+function formatSecondsToDuration(durationSeconds?: number | null): string | null {
+    if (
+        typeof durationSeconds !== "number" ||
+        !Number.isFinite(durationSeconds) ||
+        durationSeconds < 0
+    ) {
+        return null;
+    }
+
+    if (durationSeconds === 0) {
+        return "0m";
+    }
+
+    const totalMinutes = Math.floor(durationSeconds / 60);
+    const totalHours = Math.floor(totalMinutes / 60);
+    const totalDays = Math.floor(totalHours / 8);
+
+    const remainingHours = totalHours % 8;
+    const remainingMinutes = totalMinutes % 60;
+    const durationParts: string[] = [];
+
+    if (totalDays > 0) {
+        durationParts.push(`${totalDays}d`);
+    }
+    if (remainingHours > 0) {
+        durationParts.push(`${remainingHours}h`);
+    }
+    if (remainingMinutes > 0) {
+        durationParts.push(`${remainingMinutes}m`);
+    }
+
+    return durationParts.join(" ");
 }
 
 export interface Comment {

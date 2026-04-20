@@ -9,6 +9,11 @@ export interface RelatedIssue {
     priority?: string;
 }
 
+export interface LinkedIssue extends RelatedIssue {
+    relation: string;
+    relationType?: string;
+}
+
 export interface IssueStructure {
     current: RelatedIssue;
     parent?: RelatedIssue;
@@ -16,6 +21,7 @@ export interface IssueStructure {
     subtasks: RelatedIssue[];
     siblings: RelatedIssue[];
     epicStories: RelatedIssue[]; // Все истории эпика
+    issueLinks: LinkedIssue[];
 }
 
 /**
@@ -52,6 +58,7 @@ async function searchEpicStories(
     try {
         // Пробуем разные варианты поиска по Epic Link
         const jqlQueries = [
+            `parent = ${epicKey}`,
             `"Epic Link" = ${epicKey}`,
             `cf[10014] = ${epicKey}`, // customfield_10014
             `cf[10006] = ${epicKey}`, // customfield_10006
@@ -113,6 +120,7 @@ export async function getIssueStructure(
         subtasks: [],
         siblings: [],
         epicStories: [],
+        issueLinks: [],
     };
 
     // Родительская задача (получаем с подзадачами сразу)
@@ -137,6 +145,14 @@ export async function getIssueStructure(
         structure.subtasks = issue.fields.subtasks.map((subtask: any) =>
             convertToRelatedIssue(subtask, host)
         );
+    }
+
+    if (issue.fields?.issuelinks && Array.isArray(issue.fields.issuelinks)) {
+        structure.issueLinks = issue.fields.issuelinks
+            .map((issueLink: any) => convertToLinkedIssue(issueLink, host))
+            .filter((linkedIssue: LinkedIssue | null): linkedIssue is LinkedIssue =>
+                linkedIssue !== null
+            );
     }
 
     // Поиск эпика через поля текущей задачи или родительской
@@ -189,14 +205,13 @@ export async function getIssueStructure(
         }
     }
 
-    // Эпик не найден - это нормально для задач без эпика
+    const epicStoriesKey = getEpicStoriesKey(issue, structure);
 
-    // Если найден эпик, получаем все его истории
-    if (structure.epic) {
+    if (epicStoriesKey) {
         try {
             const epicStories = await searchEpicStories(
                 jira,
-                structure.epic.key,
+                epicStoriesKey,
                 host
             );
             // Показываем все истории эпика, исключая только текущую задачу
@@ -255,11 +270,49 @@ function findEpicField(fields: any): any {
     return null;
 }
 
+function convertToLinkedIssue(issueLink: any, host: string): LinkedIssue | null {
+    const linkedIssue = issueLink?.outwardIssue || issueLink?.inwardIssue;
+    if (!linkedIssue?.key) {
+        return null;
+    }
+
+    const relation =
+        (issueLink?.outwardIssue
+            ? issueLink?.type?.outward
+            : issueLink?.type?.inward) ||
+        issueLink?.type?.name ||
+        "related";
+
+    return {
+        ...convertToRelatedIssue(linkedIssue, host),
+        relation,
+        relationType: issueLink?.type?.name,
+    };
+}
+
+function getEpicStoriesKey(issue: any, structure: IssueStructure): string | null {
+    if (isEpicIssueType(issue.fields?.issuetype?.name)) {
+        return issue.key;
+    }
+
+    return structure.epic?.key || null;
+}
+
+function isEpicIssueType(issueTypeName?: string): boolean {
+    if (!issueTypeName) {
+        return false;
+    }
+
+    const normalizedTypeName = issueTypeName.toLowerCase();
+    return normalizedTypeName === "epic" || normalizedTypeName === "эпик";
+}
+
 /**
  * Форматирует структуру связанных задач в читаемый вид
  */
 export function formatIssueStructure(structure: IssueStructure): string {
     let result = `## 📋 Структура связанных задач\n\n`;
+    const currentIsEpic = isEpicIssueType(structure.current.type);
 
     // Эпик
     if (structure.epic) {
@@ -269,18 +322,6 @@ export function formatIssueStructure(structure: IssueStructure): string {
         result += `- **Статус:** ${structure.epic.status}\n`;
         if (structure.epic.priority) {
             result += `- **Приоритет:** ${structure.epic.priority}\n`;
-        }
-
-        // Показываем все истории эпика
-        if (structure.epicStories.length > 0) {
-            result += `\n#### 📚 **Истории эпика** (${structure.epicStories.length})\n`;
-            structure.epicStories.forEach((story, index) => {
-                const statusIcon = getStatusIcon(story.status);
-                result += `${index + 1}. **[${story.key}: ${story.summary}](${
-                    story.url
-                })**\n`;
-                result += `   - **Статус:** ${statusIcon} ${story.status} | **Тип:** ${story.type}\n`;
-            });
         }
 
         result += `\n---\n\n`;
@@ -305,6 +346,34 @@ export function formatIssueStructure(structure: IssueStructure): string {
     result += `- **Статус:** ${structure.current.status}\n`;
     if (structure.current.priority) {
         result += `- **Приоритет:** ${structure.current.priority}\n`;
+    }
+
+    if (structure.epicStories.length > 0) {
+        const epicStoriesTitle = currentIsEpic
+            ? "### 📚 **ЗАДАЧИ В ЭПИКЕ**"
+            : "### 📚 **ИСТОРИИ ЭПИКА**";
+        result += `\n${epicStoriesTitle} (${structure.epicStories.length})\n`;
+        structure.epicStories.forEach((story, index) => {
+            const statusIcon = getStatusIcon(story.status);
+            result += `${index + 1}. **[${story.key}: ${story.summary}](${
+                story.url
+            })**\n`;
+            result += `   - **Статус:** ${statusIcon} ${story.status} | **Тип:** ${story.type}\n`;
+        });
+        result += `\n`;
+    }
+
+    if (structure.issueLinks.length > 0) {
+        result += `\n### 🔗 **СВЯЗИ С ДРУГИМИ ЗАДАЧАМИ** (${structure.issueLinks.length})\n`;
+        structure.issueLinks.forEach((linkedIssue, index) => {
+            const statusIcon = getStatusIcon(linkedIssue.status);
+            result += `${index + 1}. **[${linkedIssue.key}: ${linkedIssue.summary}](${
+                linkedIssue.url
+            })**\n`;
+            result += `   - **Связь:** ${linkedIssue.relation}\n`;
+            result += `   - **Статус:** ${statusIcon} ${linkedIssue.status} | **Тип:** ${linkedIssue.type}\n`;
+        });
+        result += `\n`;
     }
 
     // Сиблинги (другие подзадачи родительской задачи)

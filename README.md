@@ -2,6 +2,8 @@
 
 MCP сервер для интеграции с Jira и Confluence. Позволяет Cursor AI работать с задачами Jira, ворклогами и контентом Confluence прямо в среде разработки.
 
+История изменений: [CHANGELOG.md](CHANGELOG.md).
+
 ## Возможности
 
 ### Jira

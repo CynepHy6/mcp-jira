@@ -203,6 +203,55 @@ describe("Formatters", () => {
                 "Description:\nNo description available"
             );
         });
+
+        it("should include time tracking when available", () => {
+            const issue: JiraIssue = {
+                key: "VIM-777",
+                fields: {
+                    summary: "Задача с оценками",
+                    description: "Описание",
+                    issuetype: { name: "Задача" },
+                    status: { name: "In Progress" },
+                    timetracking: {
+                        originalEstimate: "3d 4h",
+                        remainingEstimate: "1d 2h",
+                        timeSpent: "2d 2h",
+                    },
+                    created: "2025-01-01T12:00:00.000+0000",
+                    updated: "2025-01-02T14:00:00.000+0000",
+                },
+            };
+
+            const formatted = formatIssueDescription(issue);
+
+            expect(formatted).toContain("Time Tracking:");
+            expect(formatted).toContain("Original Estimate: 3d 4h");
+            expect(formatted).toContain("Remaining Estimate: 1d 2h");
+            expect(formatted).toContain("Time Spent: 2d 2h");
+        });
+
+        it("should fallback to seconds-based time tracking fields", () => {
+            const issue: JiraIssue = {
+                key: "VIM-778",
+                fields: {
+                    summary: "Задача с time fields",
+                    description: "Описание",
+                    issuetype: { name: "Задача" },
+                    status: { name: "In Progress" },
+                    timeoriginalestimate: 3600,
+                    timeestimate: 1800,
+                    timespent: 28800,
+                    created: "2025-01-01T12:00:00.000+0000",
+                    updated: "2025-01-02T14:00:00.000+0000",
+                },
+            };
+
+            const formatted = formatIssueDescription(issue);
+
+            expect(formatted).toContain("Original Estimate: 1h");
+            expect(formatted).toContain("Remaining Estimate: 30m");
+            expect(formatted).toContain("Time Spent: 1d");
+        });
     });
 
     describe("formatComments", () => {
