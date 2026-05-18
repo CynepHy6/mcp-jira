@@ -19,6 +19,7 @@ MCP сервер для интеграции с Jira и Confluence. Позвол
 
 ### Confluence
 - Создание новых страниц в пространстве
+- Редактирование существующих страниц по ID или URL
 - Получение контента страниц по ID или URL
 - Поиск страниц по заголовку и содержимому
 - Поддержка страниц и блог-постов
@@ -77,6 +78,7 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 ### Работа с Confluence
 - "Создай страницу Confluence в space ENG с заголовком 'Runbook' и содержимым `<p>...</p>`"
 - "Создай дочернюю страницу под страницей 123456"
+- "Обнови страницу Confluence 123456: новый заголовок и новое содержимое"
 - "Покажи содержимое страницы Confluence 123456"
 - "Получи контент страницы https://confluence.company.com/pages/viewpage.action?pageId=123456"
 
@@ -96,6 +98,7 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 ./test-tool.sh get-worklogs '{"startDate": "2024-01-01", "endDate": "2024-01-31"}'
 ./test-tool.sh get-confluence-page '{"pageIdOrUrl": "123456"}'
 ./test-tool.sh create-confluence-page '{"spaceKey": "ENG", "title": "Runbook", "content": "<p>Hello</p>"}'
+./test-tool.sh edit-confluence-page '{"pageIdOrUrl": "123456", "title": "Updated Runbook", "content": "<p>Updated</p>"}'
 ```
 
 ### Особенности отладки
@@ -155,6 +158,13 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 - `content` - тело страницы в формате Confluence Storage (HTML/XML)
 - `parentPageIdOrUrl` - ID или URL родительской страницы (опционально)
 
+#### `edit-confluence-page`
+Редактирование страницы в Confluence:
+- `pageIdOrUrl` - ID страницы или полный URL
+- `title` - новый заголовок (опционально)
+- `content` - новое тело страницы в формате Confluence Storage (HTML/XML), опционально
+- нужно передать хотя бы одно из полей `title` или `content`
+
 #### `get-confluence-page`
 Получение содержимого страницы Confluence:
 - `pageIdOrUrl` - ID страницы (например, 123456) или полный URL страницы
@@ -178,6 +188,7 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 
 ### Confluence
 - **Создание дочерних страниц**: Можно создавать страницу внутри существующей страницы по ID или URL родителя
+- **Редактирование страниц**: Обновление заголовка и/или содержимого с автоматическим повышением версии страницы
 - **Гибкое извлечение ID**: Автоматическое извлечение ID страницы из URL
 - **Богатые метаданные**: Информация об авторе, дате создания, версии и пространстве
 - **Поиск с фильтрацией**: Возможность ограничить поиск конкретным пространством

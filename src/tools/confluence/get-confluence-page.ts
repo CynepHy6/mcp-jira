@@ -15,7 +15,7 @@ export const getConfluencePageSchema = {
         .array(z.string())
         .optional()
         .describe(
-            "Additional properties to expand (e.g., ['version', 'space', 'ancestors'])"
+            "Additional properties to expand (e.g., ['version', 'space', 'ancestors'])",
         ),
 };
 
@@ -30,6 +30,21 @@ export const getConfluencePageHandler =
         includeBody: boolean;
         expandProperties?: string[];
     }) => {
+        const normalizeConfluenceHost = (host: string): string =>
+            host.includes("://") ? host.replace(/\/$/, "") : `https://${host}`;
+
+        const formatCreatedAt = (page: any): string => {
+            const createdAt = page.history?.createdDate || page.version?.when;
+            if (!createdAt) {
+                return "Unknown";
+            }
+
+            const parsedDate = new Date(createdAt);
+            return Number.isNaN(parsedDate.getTime())
+                ? "Unknown"
+                : parsedDate.toLocaleString();
+        };
+
         const configError = validateConfluenceConfig(confluenceConfig);
         if (configError) {
             return {
@@ -48,7 +63,7 @@ export const getConfluencePageHandler =
             if (pageIdOrUrl.includes("/")) {
                 const urlParts = pageIdOrUrl.split("/");
                 const pageIndex = urlParts.findIndex(
-                    (part) => part === "pages"
+                    (part) => part === "pages",
                 );
                 if (pageIndex >= 0 && pageIndex < urlParts.length - 1) {
                     pageId = urlParts[pageIndex + 1];
@@ -71,7 +86,7 @@ export const getConfluencePageHandler =
             }
 
             // Build expand parameter
-            const expandParams = ["space"];
+            const expandParams = ["space", "history", "version"];
             if (includeBody) {
                 expandParams.push("body.storage");
             }
@@ -102,14 +117,13 @@ export const getConfluencePageHandler =
             content += `Space: ${page.space?.name || "Unknown"}\n`;
             content += `Type: ${page.type}\n`;
             content += `Status: ${page.status}\n`;
-            content += `Created: ${new Date(
-                page.createdDate
-            ).toLocaleString()}\n`;
+            content += `Created: ${formatCreatedAt(page)}\n`;
             const webui = page._links?.webui || "";
+            const baseUrl =
+                page._links?.base ||
+                normalizeConfluenceHost(confluenceConfig.host);
             content += `URL: ${
-                webui
-                    ? `${confluenceConfig.host}/wiki${webui}`
-                    : "URL not available"
+                webui ? `${baseUrl}${webui}` : "URL not available"
             }\n`;
 
             if (includeBody && page.body?.storage?.value) {

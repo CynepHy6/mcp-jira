@@ -36,6 +36,10 @@ import {
     createConfluencePageSchema,
 } from "./tools/confluence/create-confluence-page.js";
 import {
+    editConfluencePageHandler,
+    editConfluencePageSchema,
+} from "./tools/confluence/edit-confluence-page.js";
+import {
     getConfluencePageHandler,
     getConfluencePageSchema,
 } from "./tools/confluence/get-confluence-page.js";
@@ -84,7 +88,7 @@ const server = new McpServer(
         capabilities: {
             tools: {},
         },
-    }
+    },
 );
 
 // Function to test Jira authentication
@@ -106,42 +110,42 @@ server.tool(
     "read-description",
     "Get the description of a Jira issue. ALWAYS use this tool FIRST when a Jira issue URL or key is mentioned in the user query to understand the full context, requirements, and business logic before proceeding with code analysis or implementation.",
     readDescriptionSchema,
-    readDescriptionHandler(jira, jiraConfig) as any
+    readDescriptionHandler(jira, jiraConfig) as any,
 );
 
 server.tool(
     "read-comments",
     "Get the comments for a Jira issue. Use this tool to get additional context, clarifications, and discussions about the issue after reading the main description.",
     readCommentsSchema,
-    readCommentsHandler(jira, jiraConfig) as any
+    readCommentsHandler(jira, jiraConfig) as any,
 );
 
 server.tool(
     "get-worklogs",
     "Get worklogs and task descriptions for yourself or a colleague",
     getWorklogsSchema,
-    getWorklogsHandler(jira, jiraConfig) as any
+    getWorklogsHandler(jira, jiraConfig) as any,
 );
 
 server.tool(
     "get-worklogs-by-days",
     "Get worklogs by specifying days and start date (yours or a colleague's)",
     getWorklogsByDaysSchema,
-    getWorklogsByDaysHandler(jira, jiraConfig) as any
+    getWorklogsByDaysHandler(jira, jiraConfig) as any,
 );
 
 server.tool(
     "search-issues",
     "Search for Jira issues by title (summary) or description. Use this when you need to find related issues or when working on tasks that might have dependencies on other tickets.",
     searchIssuesSchema,
-    searchIssuesHandler(jira, jiraConfig) as any
+    searchIssuesHandler(jira, jiraConfig) as any,
 );
 
 server.tool(
     "get-recent-worklogs",
     "Get worklogs for standard time periods (yours or a colleague's)",
     getRecentWorklogsSchema,
-    getRecentWorklogsHandler(jira, jiraConfig) as any
+    getRecentWorklogsHandler(jira, jiraConfig) as any,
 );
 
 // Register Confluence tools
@@ -149,21 +153,28 @@ server.tool(
     "create-confluence-page",
     "Create a new Confluence page in a space, optionally under a parent page. The content must be provided in Confluence storage format (HTML/XML).",
     createConfluencePageSchema,
-    createConfluencePageHandler(confluence, confluenceConfig) as any
+    createConfluencePageHandler(confluence, confluenceConfig) as any,
+);
+
+server.tool(
+    "edit-confluence-page",
+    "Update an existing Confluence page by ID or URL. Supports changing title and/or content in Confluence storage format (HTML/XML).",
+    editConfluencePageSchema,
+    editConfluencePageHandler(confluence, confluenceConfig) as any,
 );
 
 server.tool(
     "get-confluence-page",
     "Get the content of a Confluence page by ID or URL",
     getConfluencePageSchema,
-    getConfluencePageHandler(confluence, confluenceConfig) as any
+    getConfluencePageHandler(confluence, confluenceConfig) as any,
 );
 
 server.tool(
     "search-confluence-pages",
     "Search for Confluence pages by title or content",
     searchConfluencePagesSchema,
-    searchConfluencePagesHandler(confluence, confluenceConfig) as any
+    searchConfluencePagesHandler(confluence, confluenceConfig) as any,
 );
 
 // Start server
@@ -174,7 +185,7 @@ async function main() {
         if (authError) {
             console.error(`❌ ${authError}`);
             console.error(
-                "Please check your environment variables and authentication configuration."
+                "Please check your environment variables and authentication configuration.",
             );
             process.exit(1);
         }

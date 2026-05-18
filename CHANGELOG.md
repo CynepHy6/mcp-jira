@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+- Инструмент `edit-confluence-page` для редактирования заголовка и содержимого страниц Confluence по ID или URL.
+
+### Исправлено
+
+- В `get-confluence-page` дата создания теперь берется из реального ответа Confluence (`history.createdDate` с запасным вариантом `version.when`) без `Invalid Date`.
+
 ## [1.1.0] - 2026-05-18
 
 ### Добавлено

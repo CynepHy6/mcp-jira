@@ -7,6 +7,10 @@ import {
     createConfluencePageSchema,
 } from "../../src/tools/confluence/create-confluence-page.js";
 import {
+    editConfluencePageHandler,
+    editConfluencePageSchema,
+} from "../../src/tools/confluence/edit-confluence-page.js";
+import {
     getConfluencePageHandler,
     getConfluencePageSchema,
 } from "../../src/tools/confluence/get-confluence-page.js";
@@ -80,7 +84,7 @@ describe("Confluence Tools", () => {
 
             const handler = searchConfluencePagesHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 query: "test query",
@@ -89,7 +93,7 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain(
-                "Found 1 page(s) for query"
+                "Found 1 page(s) for query",
             );
             expect(result.content[0].text).toContain("Test Page Title");
             expect(result.content[0].text).toContain("ID: 123456");
@@ -112,7 +116,7 @@ describe("Confluence Tools", () => {
 
             const handler = searchConfluencePagesHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 query: "test",
@@ -122,7 +126,7 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain(
-                "No pages found for query"
+                "No pages found for query",
             );
             expect(result.content[0].text).toContain("in space PROJ");
         });
@@ -161,7 +165,7 @@ describe("Confluence Tools", () => {
 
             const handler = searchConfluencePagesHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 query: "test",
@@ -176,7 +180,7 @@ describe("Confluence Tools", () => {
 
             // Should decode HTML entities
             expect(result.content[0].text).toContain(
-                "test excerpt with <html> entities"
+                "test excerpt with <html> entities",
             );
             expect(result.content[0].text).not.toContain("&lt;");
             expect(result.content[0].text).not.toContain("&gt;");
@@ -194,7 +198,7 @@ describe("Confluence Tools", () => {
 
             const handler = searchConfluencePagesHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 query: "test",
@@ -211,7 +215,7 @@ describe("Confluence Tools", () => {
 
             const handler = searchConfluencePagesHandler(
                 confluenceClient,
-                invalidConfig
+                invalidConfig,
             );
             const result = await handler({
                 query: "test",
@@ -258,7 +262,7 @@ describe("Confluence Tools", () => {
 
             const handler = createConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 spaceKey: "ENG",
@@ -267,13 +271,15 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain(
-                "Page created successfully"
+                "Page created successfully",
             );
             expect(result.content[0].text).toContain("Title: New Test Page");
             expect(result.content[0].text).toContain("ID: 456789");
-            expect(result.content[0].text).toContain("Space: Engineering Space");
             expect(result.content[0].text).toContain(
-                "URL: https://test-confluence.example.com/spaces/ENG/pages/456789/New+Test+Page"
+                "Space: Engineering Space",
+            );
+            expect(result.content[0].text).toContain(
+                "URL: https://test-confluence.example.com/spaces/ENG/pages/456789/New+Test+Page",
             );
         });
 
@@ -312,7 +318,7 @@ describe("Confluence Tools", () => {
 
             const handler = createConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 spaceKey: "ENG",
@@ -329,7 +335,7 @@ describe("Confluence Tools", () => {
         it("should reject invalid parent page URL", async () => {
             const handler = createConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 spaceKey: "ENG",
@@ -339,18 +345,20 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain(
-                "Cannot extract parent page ID from URL"
+                "Cannot extract parent page ID from URL",
             );
         });
 
         it("should handle create page API errors gracefully", async () => {
             nock("https://test-confluence.example.com")
                 .post("/rest/api/content")
-                .reply(400, { message: "A page with this title already exists" });
+                .reply(400, {
+                    message: "A page with this title already exists",
+                });
 
             const handler = createConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 spaceKey: "ENG",
@@ -360,7 +368,7 @@ describe("Confluence Tools", () => {
 
             expect(result.content[0].text).toContain("Failed to create page");
             expect(result.content[0].text).toContain(
-                "A page with this title already exists"
+                "A page with this title already exists",
             );
         });
 
@@ -369,12 +377,262 @@ describe("Confluence Tools", () => {
 
             const handler = createConfluencePageHandler(
                 confluenceClient,
-                invalidConfig
+                invalidConfig,
             );
             const result = await handler({
                 spaceKey: "ENG",
                 title: "Config Error Page",
                 content: "<p>Test</p>",
+            });
+
+            expect(result.content[0].text).toContain("Configuration error");
+        });
+    });
+
+    describe("editConfluencePageHandler", () => {
+        it("should update page title and content successfully", async () => {
+            const currentPage = {
+                id: "555001",
+                type: "page",
+                title: "Old Title",
+                status: "current",
+                space: {
+                    key: "ENG",
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 3,
+                },
+                body: {
+                    storage: {
+                        value: "<p>Old content</p>",
+                    },
+                },
+            };
+
+            const updatedPage = {
+                id: "555001",
+                title: "New Title",
+                status: "current",
+                space: {
+                    key: "ENG",
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 4,
+                },
+                _links: {
+                    base: "https://test-confluence.example.com",
+                    webui: "/display/ENG/New+Title",
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/555001")
+                .query({
+                    expand: "space,version,body.storage",
+                })
+                .reply(200, currentPage);
+
+            nock("https://test-confluence.example.com")
+                .put("/rest/api/content/555001", {
+                    id: "555001",
+                    type: "page",
+                    title: "New Title",
+                    space: {
+                        key: "ENG",
+                    },
+                    body: {
+                        storage: {
+                            value: "<p>New content</p>",
+                            representation: "storage",
+                        },
+                    },
+                    version: {
+                        number: 4,
+                    },
+                })
+                .reply(200, updatedPage);
+
+            const handler = editConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "555001",
+                title: "New Title",
+                content: "<p>New content</p>",
+            });
+
+            expect(result.content[0].text).toContain(
+                "Page updated successfully",
+            );
+            expect(result.content[0].text).toContain("Title: New Title");
+            expect(result.content[0].text).toContain("Version: 4");
+            expect(result.content[0].text).toContain(
+                "URL: https://test-confluence.example.com/display/ENG/New+Title",
+            );
+        });
+
+        it("should update content by page URL and keep current title", async () => {
+            const currentPage = {
+                id: "555002",
+                type: "page",
+                title: "Stable Title",
+                status: "current",
+                space: {
+                    key: "ENG",
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 1,
+                },
+                body: {
+                    storage: {
+                        value: "<p>Old body</p>",
+                    },
+                },
+            };
+
+            const updatedPage = {
+                id: "555002",
+                title: "Stable Title",
+                status: "current",
+                space: {
+                    key: "ENG",
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 2,
+                },
+                _links: {
+                    base: "https://test-confluence.example.com",
+                    webui: "/pages/viewpage.action?pageId=555002",
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/555002")
+                .query({
+                    expand: "space,version,body.storage",
+                })
+                .reply(200, currentPage);
+
+            nock("https://test-confluence.example.com")
+                .put("/rest/api/content/555002", {
+                    id: "555002",
+                    type: "page",
+                    title: "Stable Title",
+                    space: {
+                        key: "ENG",
+                    },
+                    body: {
+                        storage: {
+                            value: "<p>Updated body</p>",
+                            representation: "storage",
+                        },
+                    },
+                    version: {
+                        number: 2,
+                    },
+                })
+                .reply(200, updatedPage);
+
+            const handler = editConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl:
+                    "https://confluence.example.com/display/SPACE/viewpage.action?pageId=555002",
+                content: "<p>Updated body</p>",
+            });
+
+            expect(result.content[0].text).toContain("Title: Stable Title");
+            expect(result.content[0].text).toContain("Version: 2");
+        });
+
+        it("should reject edit request without fields to update", async () => {
+            const handler = editConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "555003",
+            });
+
+            expect(result.content[0].text).toContain("Nothing to update");
+        });
+
+        it("should reject invalid page URL", async () => {
+            const handler = editConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "https://invalid.example.com/not-a-page",
+                title: "New Title",
+            });
+
+            expect(result.content[0].text).toContain(
+                "Cannot extract page ID from URL",
+            );
+        });
+
+        it("should handle update API errors gracefully", async () => {
+            const currentPage = {
+                id: "555004",
+                type: "page",
+                title: "Original Title",
+                status: "current",
+                space: {
+                    key: "ENG",
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 5,
+                },
+                body: {
+                    storage: {
+                        value: "<p>Body</p>",
+                    },
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/555004")
+                .query({
+                    expand: "space,version,body.storage",
+                })
+                .reply(200, currentPage);
+
+            nock("https://test-confluence.example.com")
+                .put("/rest/api/content/555004")
+                .reply(409, { message: "Version conflict" });
+
+            const handler = editConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "555004",
+                title: "Updated Title",
+            });
+
+            expect(result.content[0].text).toContain("Failed to update page");
+            expect(result.content[0].text).toContain("Version conflict");
+        });
+
+        it("should validate configuration before update", async () => {
+            const invalidConfig = { ...mockConfig, username: "" };
+
+            const handler = editConfluencePageHandler(
+                confluenceClient,
+                invalidConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "555005",
+                title: "Config Error Title",
             });
 
             expect(result.content[0].text).toContain("Configuration error");
@@ -388,11 +646,17 @@ describe("Confluence Tools", () => {
                 title: "Test Page",
                 type: "page",
                 status: "current",
-                createdDate: "2023-01-01T00:00:00.000Z",
                 space: {
                     name: "Test Space",
                 },
+                history: {
+                    createdDate: "2023-01-01T00:00:00.000Z",
+                },
+                version: {
+                    when: "2023-01-02T00:00:00.000Z",
+                },
                 _links: {
+                    base: "https://test-confluence.example.com",
                     webui: "/display/SPACE/Test+Page",
                 },
                 body: {
@@ -405,13 +669,13 @@ describe("Confluence Tools", () => {
             nock("https://test-confluence.example.com")
                 .get("/rest/api/content/123456")
                 .query({
-                    expand: "space,body.storage",
+                    expand: "space,history,version,body.storage",
                 })
                 .reply(200, mockPage);
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 pageIdOrUrl: "123456",
@@ -422,7 +686,11 @@ describe("Confluence Tools", () => {
             expect(result.content[0].text).toContain("Space: Test Space");
             expect(result.content[0].text).toContain("Type: page");
             expect(result.content[0].text).toContain("Status: current");
+            expect(result.content[0].text).toContain("Created:");
             expect(result.content[0].text).toContain("This is test content");
+            expect(result.content[0].text).toContain(
+                "URL: https://test-confluence.example.com/display/SPACE/Test+Page",
+            );
         });
 
         it("should extract page ID from viewpage.action URL", async () => {
@@ -431,11 +699,17 @@ describe("Confluence Tools", () => {
                 title: "Another Test Page",
                 type: "page",
                 status: "current",
-                createdDate: "2023-01-01T00:00:00.000Z",
                 space: {
                     name: "Test Space",
                 },
+                history: {
+                    createdDate: "2023-01-01T00:00:00.000Z",
+                },
+                version: {
+                    when: "2023-01-01T00:00:00.000Z",
+                },
                 _links: {
+                    base: "https://test-confluence.example.com",
                     webui: "/display/SPACE/Another+Test+Page",
                 },
             };
@@ -443,13 +717,13 @@ describe("Confluence Tools", () => {
             nock("https://test-confluence.example.com")
                 .get("/rest/api/content/789012")
                 .query({
-                    expand: "space",
+                    expand: "space,history,version",
                 })
                 .reply(200, mockPage);
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 pageIdOrUrl:
@@ -458,7 +732,7 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain(
-                "Title: Another Test Page"
+                "Title: Another Test Page",
             );
         });
 
@@ -468,11 +742,17 @@ describe("Confluence Tools", () => {
                 title: "Third Test Page",
                 type: "page",
                 status: "current",
-                createdDate: "2023-01-01T00:00:00.000Z",
                 space: {
                     name: "Test Space",
                 },
+                history: {
+                    createdDate: "2023-01-01T00:00:00.000Z",
+                },
+                version: {
+                    when: "2023-01-01T00:00:00.000Z",
+                },
                 _links: {
+                    base: "https://test-confluence.example.com",
                     webui: "/display/SPACE/Third+Test+Page",
                 },
             };
@@ -480,13 +760,13 @@ describe("Confluence Tools", () => {
             nock("https://test-confluence.example.com")
                 .get("/rest/api/content/345678")
                 .query({
-                    expand: "space",
+                    expand: "space,history,version",
                 })
                 .reply(200, mockPage);
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 pageIdOrUrl:
@@ -497,17 +777,55 @@ describe("Confluence Tools", () => {
             expect(result.content[0].text).toContain("Title: Third Test Page");
         });
 
+        it("should fall back to version date when history date is absent", async () => {
+            const mockPage = {
+                id: "345679",
+                title: "Version Date Page",
+                type: "page",
+                status: "current",
+                space: {
+                    name: "Test Space",
+                },
+                version: {
+                    when: "2023-02-03T04:05:06.000Z",
+                },
+                _links: {
+                    base: "https://test-confluence.example.com",
+                    webui: "/display/SPACE/Version+Date+Page",
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/345679")
+                .query({
+                    expand: "space,history,version",
+                })
+                .reply(200, mockPage);
+
+            const handler = getConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "345679",
+                includeBody: false,
+            });
+
+            expect(result.content[0].text).toContain("Created:");
+            expect(result.content[0].text).not.toContain("Invalid Date");
+        });
+
         it("should handle page not found", async () => {
             nock("https://test-confluence.example.com")
                 .get("/rest/api/content/999999")
                 .query({
-                    expand: "space",
+                    expand: "space,history,version",
                 })
                 .reply(404, { message: "Page not found" });
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 pageIdOrUrl: "999999",
@@ -520,7 +838,7 @@ describe("Confluence Tools", () => {
         it("should handle invalid URL format", async () => {
             const handler = getConfluencePageHandler(
                 confluenceClient,
-                mockConfig
+                mockConfig,
             );
             const result = await handler({
                 pageIdOrUrl: "https://invalid-url-format.com/some/path",
@@ -528,7 +846,7 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain(
-                "Cannot extract page ID from URL"
+                "Cannot extract page ID from URL",
             );
         });
 
@@ -537,7 +855,7 @@ describe("Confluence Tools", () => {
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
-                invalidConfig
+                invalidConfig,
             );
             const result = await handler({
                 pageIdOrUrl: "123456",
@@ -554,6 +872,12 @@ describe("Confluence Tools", () => {
             expect(createConfluencePageSchema.title).toBeDefined();
             expect(createConfluencePageSchema.content).toBeDefined();
             expect(createConfluencePageSchema.parentPageIdOrUrl).toBeDefined();
+        });
+
+        it("should validate editConfluencePageSchema", () => {
+            expect(editConfluencePageSchema.pageIdOrUrl).toBeDefined();
+            expect(editConfluencePageSchema.title).toBeDefined();
+            expect(editConfluencePageSchema.content).toBeDefined();
         });
 
         it("should validate searchConfluencePagesSchema", () => {
