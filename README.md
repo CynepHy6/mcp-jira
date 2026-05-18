@@ -18,6 +18,7 @@ MCP сервер для интеграции с Jira и Confluence. Позвол
 - **Гибкие фильтры** по проектам и типам задач
 
 ### Confluence
+- Создание новых страниц в пространстве
 - Получение контента страниц по ID или URL
 - Поиск страниц по заголовку и содержимому
 - Поддержка страниц и блог-постов
@@ -74,6 +75,8 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 - "Покажи ворклоги коллеги за 180 дней"
 
 ### Работа с Confluence
+- "Создай страницу Confluence в space ENG с заголовком 'Runbook' и содержимым `<p>...</p>`"
+- "Создай дочернюю страницу под страницей 123456"
 - "Покажи содержимое страницы Confluence 123456"
 - "Получи контент страницы https://confluence.company.com/pages/viewpage.action?pageId=123456"
 
@@ -92,6 +95,7 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 ./test-tool.sh search-issues '{"query": "API", "maxResults": 5}'
 ./test-tool.sh get-worklogs '{"startDate": "2024-01-01", "endDate": "2024-01-31"}'
 ./test-tool.sh get-confluence-page '{"pageIdOrUrl": "123456"}'
+./test-tool.sh create-confluence-page '{"spaceKey": "ENG", "title": "Runbook", "content": "<p>Hello</p>"}'
 ```
 
 ### Особенности отладки
@@ -144,6 +148,13 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 
 ### Confluence
 
+#### `create-confluence-page`
+Создание страницы в Confluence:
+- `spaceKey` - ключ пространства, где создать страницу
+- `title` - заголовок новой страницы
+- `content` - тело страницы в формате Confluence Storage (HTML/XML)
+- `parentPageIdOrUrl` - ID или URL родительской страницы (опционально)
+
 #### `get-confluence-page`
 Получение содержимого страницы Confluence:
 - `pageIdOrUrl` - ID страницы (например, 123456) или полный URL страницы
@@ -166,6 +177,7 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 - **Детальная информация**: Включает описания задач, URL, статус, приоритет и полные ворклоги
 
 ### Confluence
+- **Создание дочерних страниц**: Можно создавать страницу внутри существующей страницы по ID или URL родителя
 - **Гибкое извлечение ID**: Автоматическое извлечение ID страницы из URL
 - **Богатые метаданные**: Информация об авторе, дате создания, версии и пространстве
 - **Поиск с фильтрацией**: Возможность ограничить поиск конкретным пространством

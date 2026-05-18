@@ -3,6 +3,10 @@
 import axios from "axios";
 import nock from "nock";
 import {
+    createConfluencePageHandler,
+    createConfluencePageSchema,
+} from "../../src/tools/confluence/create-confluence-page.js";
+import {
     getConfluencePageHandler,
     getConfluencePageSchema,
 } from "../../src/tools/confluence/get-confluence-page.js";
@@ -219,6 +223,164 @@ describe("Confluence Tools", () => {
         });
     });
 
+    describe("createConfluencePageHandler", () => {
+        it("should create a page successfully", async () => {
+            const mockResponse = {
+                id: "456789",
+                title: "New Test Page",
+                status: "current",
+                space: {
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 1,
+                },
+                _links: {
+                    webui: "/spaces/ENG/pages/456789/New+Test+Page",
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .post("/rest/api/content", {
+                    type: "page",
+                    title: "New Test Page",
+                    space: {
+                        key: "ENG",
+                    },
+                    body: {
+                        storage: {
+                            value: "<p>Hello from test</p>",
+                            representation: "storage",
+                        },
+                    },
+                })
+                .reply(200, mockResponse);
+
+            const handler = createConfluencePageHandler(
+                confluenceClient,
+                mockConfig
+            );
+            const result = await handler({
+                spaceKey: "ENG",
+                title: "New Test Page",
+                content: "<p>Hello from test</p>",
+            });
+
+            expect(result.content[0].text).toContain(
+                "Page created successfully"
+            );
+            expect(result.content[0].text).toContain("Title: New Test Page");
+            expect(result.content[0].text).toContain("ID: 456789");
+            expect(result.content[0].text).toContain("Space: Engineering Space");
+            expect(result.content[0].text).toContain(
+                "URL: https://test-confluence.example.com/spaces/ENG/pages/456789/New+Test+Page"
+            );
+        });
+
+        it("should create a child page using parent page URL", async () => {
+            const mockResponse = {
+                id: "456790",
+                title: "Child Test Page",
+                status: "current",
+                space: {
+                    name: "Engineering Space",
+                },
+                version: {
+                    number: 1,
+                },
+                _links: {
+                    webui: "/pages/viewpage.action?pageId=456790",
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .post("/rest/api/content", {
+                    type: "page",
+                    title: "Child Test Page",
+                    space: {
+                        key: "ENG",
+                    },
+                    body: {
+                        storage: {
+                            value: "<p>Nested page</p>",
+                            representation: "storage",
+                        },
+                    },
+                    ancestors: [{ id: "123456" }],
+                })
+                .reply(200, mockResponse);
+
+            const handler = createConfluencePageHandler(
+                confluenceClient,
+                mockConfig
+            );
+            const result = await handler({
+                spaceKey: "ENG",
+                title: "Child Test Page",
+                content: "<p>Nested page</p>",
+                parentPageIdOrUrl:
+                    "https://confluence.example.com/wiki/spaces/ENG/pages/123456/Parent+Page",
+            });
+
+            expect(result.content[0].text).toContain("ID: 456790");
+            expect(result.content[0].text).toContain("Parent page ID: 123456");
+        });
+
+        it("should reject invalid parent page URL", async () => {
+            const handler = createConfluencePageHandler(
+                confluenceClient,
+                mockConfig
+            );
+            const result = await handler({
+                spaceKey: "ENG",
+                title: "Broken Parent Page",
+                content: "<p>Nested page</p>",
+                parentPageIdOrUrl: "https://invalid.example.com/not-a-page",
+            });
+
+            expect(result.content[0].text).toContain(
+                "Cannot extract parent page ID from URL"
+            );
+        });
+
+        it("should handle create page API errors gracefully", async () => {
+            nock("https://test-confluence.example.com")
+                .post("/rest/api/content")
+                .reply(400, { message: "A page with this title already exists" });
+
+            const handler = createConfluencePageHandler(
+                confluenceClient,
+                mockConfig
+            );
+            const result = await handler({
+                spaceKey: "ENG",
+                title: "Duplicate Page",
+                content: "<p>Duplicate</p>",
+            });
+
+            expect(result.content[0].text).toContain("Failed to create page");
+            expect(result.content[0].text).toContain(
+                "A page with this title already exists"
+            );
+        });
+
+        it("should validate configuration before create", async () => {
+            const invalidConfig = { ...mockConfig, username: "" };
+
+            const handler = createConfluencePageHandler(
+                confluenceClient,
+                invalidConfig
+            );
+            const result = await handler({
+                spaceKey: "ENG",
+                title: "Config Error Page",
+                content: "<p>Test</p>",
+            });
+
+            expect(result.content[0].text).toContain("Configuration error");
+        });
+    });
+
     describe("getConfluencePageHandler", () => {
         it("should get page by ID successfully", async () => {
             const mockPage = {
@@ -387,6 +549,13 @@ describe("Confluence Tools", () => {
     });
 
     describe("Schema validation", () => {
+        it("should validate createConfluencePageSchema", () => {
+            expect(createConfluencePageSchema.spaceKey).toBeDefined();
+            expect(createConfluencePageSchema.title).toBeDefined();
+            expect(createConfluencePageSchema.content).toBeDefined();
+            expect(createConfluencePageSchema.parentPageIdOrUrl).toBeDefined();
+        });
+
         it("should validate searchConfluencePagesSchema", () => {
             expect(searchConfluencePagesSchema.query).toBeDefined();
             expect(searchConfluencePagesSchema.spaceKey).toBeDefined();

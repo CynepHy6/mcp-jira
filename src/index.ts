@@ -32,6 +32,10 @@ import {
 
 // Import tool handlers
 import {
+    createConfluencePageHandler,
+    createConfluencePageSchema,
+} from "./tools/confluence/create-confluence-page.js";
+import {
     getConfluencePageHandler,
     getConfluencePageSchema,
 } from "./tools/confluence/get-confluence-page.js";
@@ -74,7 +78,7 @@ const confluence = createConfiguredConfluenceClient();
 const server = new McpServer(
     {
         name: "jira-confluence-mcp",
-        version: "1.0.0",
+        version: "1.1.0",
     },
     {
         capabilities: {
@@ -141,6 +145,13 @@ server.tool(
 );
 
 // Register Confluence tools
+server.tool(
+    "create-confluence-page",
+    "Create a new Confluence page in a space, optionally under a parent page. The content must be provided in Confluence storage format (HTML/XML).",
+    createConfluencePageSchema,
+    createConfluencePageHandler(confluence, confluenceConfig) as any
+);
+
 server.tool(
     "get-confluence-page",
     "Get the content of a Confluence page by ID or URL",
