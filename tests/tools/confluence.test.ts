@@ -640,6 +640,19 @@ describe("Confluence Tools", () => {
     });
 
     describe("getConfluencePageHandler", () => {
+        const mockEmptyComments = (pageId: string) => {
+            nock("https://test-confluence.example.com")
+                .get(`/rest/api/content/${pageId}/child/comment`)
+                .query({
+                    expand: "body.storage,history,version,extensions.resolution,extensions.inlineProperties",
+                    limit: 100,
+                    start: 0,
+                })
+                .reply(200, {
+                    results: [],
+                });
+        };
+
         it("should get page by ID successfully", async () => {
             const mockPage = {
                 id: "123456",
@@ -672,6 +685,7 @@ describe("Confluence Tools", () => {
                     expand: "space,history,version,body.storage",
                 })
                 .reply(200, mockPage);
+            mockEmptyComments("123456");
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
@@ -691,6 +705,8 @@ describe("Confluence Tools", () => {
             expect(result.content[0].text).toContain(
                 "URL: https://test-confluence.example.com/display/SPACE/Test+Page",
             );
+            expect(result.content[0].text).toContain("Comments:");
+            expect(result.content[0].text).toContain("No comments found.");
         });
 
         it("should extract page ID from viewpage.action URL", async () => {
@@ -720,6 +736,7 @@ describe("Confluence Tools", () => {
                     expand: "space,history,version",
                 })
                 .reply(200, mockPage);
+            mockEmptyComments("789012");
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
@@ -734,6 +751,7 @@ describe("Confluence Tools", () => {
             expect(result.content[0].text).toContain(
                 "Title: Another Test Page",
             );
+            expect(result.content[0].text).toContain("No comments found.");
         });
 
         it("should extract page ID from pages URL format", async () => {
@@ -763,6 +781,7 @@ describe("Confluence Tools", () => {
                     expand: "space,history,version",
                 })
                 .reply(200, mockPage);
+            mockEmptyComments("345678");
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
@@ -775,6 +794,7 @@ describe("Confluence Tools", () => {
             });
 
             expect(result.content[0].text).toContain("Title: Third Test Page");
+            expect(result.content[0].text).toContain("No comments found.");
         });
 
         it("should fall back to version date when history date is absent", async () => {
@@ -801,6 +821,7 @@ describe("Confluence Tools", () => {
                     expand: "space,history,version",
                 })
                 .reply(200, mockPage);
+            mockEmptyComments("345679");
 
             const handler = getConfluencePageHandler(
                 confluenceClient,
@@ -813,6 +834,226 @@ describe("Confluence Tools", () => {
 
             expect(result.content[0].text).toContain("Created:");
             expect(result.content[0].text).not.toContain("Invalid Date");
+            expect(result.content[0].text).toContain("No comments found.");
+        });
+
+        it("should include page comments by default", async () => {
+            const mockPage = {
+                id: "123457",
+                title: "Commented Page",
+                type: "page",
+                status: "current",
+                space: {
+                    name: "Test Space",
+                },
+                history: {
+                    createdDate: "2023-01-01T00:00:00.000Z",
+                },
+                version: {
+                    when: "2023-01-02T00:00:00.000Z",
+                },
+                _links: {
+                    base: "https://test-confluence.example.com",
+                    webui: "/display/SPACE/Commented+Page",
+                },
+            };
+
+            const commentsResponse = {
+                results: [
+                    {
+                        id: "comment-1",
+                        type: "comment",
+                        status: "current",
+                        body: {
+                            storage: {
+                                value: "<p>Inline comment body</p>",
+                            },
+                        },
+                        history: {
+                            createdDate: "2023-02-03T04:05:06.000Z",
+                            createdBy: {
+                                displayName: "Jane Doe",
+                            },
+                        },
+                        extensions: {
+                            location: "inline",
+                            resolution: {
+                                status: "open",
+                            },
+                            inlineProperties: {
+                                textSelection: "ready for test",
+                            },
+                        },
+                        _links: {
+                            base: "https://test-confluence.example.com",
+                            webui: "/pages/viewpage.action?pageId=123457&focusedCommentId=comment-1#comment-comment-1",
+                        },
+                    },
+                ],
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/123457")
+                .query({
+                    expand: "space,history,version",
+                })
+                .reply(200, mockPage);
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/123457/child/comment")
+                .query({
+                    expand: "body.storage,history,version,extensions.resolution,extensions.inlineProperties",
+                    limit: 100,
+                    start: 0,
+                })
+                .reply(200, commentsResponse);
+
+            const handler = getConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "123457",
+                includeBody: false,
+            });
+
+            expect(result.content[0].text).toContain("Comments (1):");
+            expect(result.content[0].text).toContain("Jane Doe");
+            expect(result.content[0].text).toContain("Location: inline");
+            expect(result.content[0].text).toContain("Resolution: open");
+            expect(result.content[0].text).toContain(
+                "Selected text: ready for test",
+            );
+            expect(result.content[0].text).toContain("Inline comment body");
+        });
+
+        it("should keep custom expandProperties while including comments", async () => {
+            const mockPage = {
+                id: "123458",
+                title: "Expanded Comments Page",
+                type: "page",
+                status: "current",
+                space: {
+                    name: "Test Space",
+                },
+                history: {
+                    createdDate: "2023-01-01T00:00:00.000Z",
+                },
+                version: {
+                    when: "2023-01-02T00:00:00.000Z",
+                },
+                _links: {
+                    base: "https://test-confluence.example.com",
+                    webui: "/display/SPACE/Expanded+Comments+Page",
+                },
+            };
+
+            const commentsResponse = {
+                results: [
+                    {
+                        id: "comment-2",
+                        type: "comment",
+                        status: "current",
+                        body: {
+                            storage: {
+                                value: "<p>Footer comment body</p>",
+                            },
+                        },
+                        history: {
+                            createdDate: "2023-02-03T04:05:06.000Z",
+                            createdBy: {
+                                displayName: "John Doe",
+                            },
+                        },
+                        extensions: {
+                            location: "footer",
+                        },
+                    },
+                ],
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/123458")
+                .query({
+                    expand: "space,history,version,children.comment",
+                })
+                .reply(200, mockPage);
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/123458/child/comment")
+                .query({
+                    expand: "body.storage,history,version,extensions.resolution,extensions.inlineProperties",
+                    limit: 100,
+                    start: 0,
+                })
+                .reply(200, commentsResponse);
+
+            const handler = getConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "123458",
+                includeBody: false,
+                expandProperties: ["children.comment"],
+            });
+
+            expect(result.content[0].text).toContain("Comments (1):");
+            expect(result.content[0].text).toContain("John Doe");
+            expect(result.content[0].text).toContain("Location: footer");
+            expect(result.content[0].text).toContain("Footer comment body");
+        });
+
+        it("should mention when page comments are absent", async () => {
+            const mockPage = {
+                id: "123459",
+                title: "Page Without Comments",
+                type: "page",
+                status: "current",
+                space: {
+                    name: "Test Space",
+                },
+                history: {
+                    createdDate: "2023-01-01T00:00:00.000Z",
+                },
+                version: {
+                    when: "2023-01-02T00:00:00.000Z",
+                },
+                _links: {
+                    base: "https://test-confluence.example.com",
+                    webui: "/display/SPACE/Page+Without+Comments",
+                },
+            };
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/123459")
+                .query({
+                    expand: "space,history,version",
+                })
+                .reply(200, mockPage);
+
+            nock("https://test-confluence.example.com")
+                .get("/rest/api/content/123459/child/comment")
+                .query({
+                    expand: "body.storage,history,version,extensions.resolution,extensions.inlineProperties",
+                    limit: 100,
+                    start: 0,
+                })
+                .reply(200, {
+                    results: [],
+                });
+
+            const handler = getConfluencePageHandler(
+                confluenceClient,
+                mockConfig,
+            );
+            const result = await handler({
+                pageIdOrUrl: "123459",
+                includeBody: false,
+            });
+
+            expect(result.content[0].text).toContain("Comments:");
+            expect(result.content[0].text).toContain("No comments found.");
         });
 
         it("should handle page not found", async () => {

@@ -165,7 +165,7 @@ server.tool(
 
 server.tool(
     "get-confluence-page",
-    "Get the content of a Confluence page by ID or URL",
+    "Get the content of a Confluence page by ID or URL together with page comments",
     getConfluencePageSchema,
     getConfluencePageHandler(confluence, confluenceConfig) as any,
 );
