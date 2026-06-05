@@ -133,7 +133,7 @@ const zephyr = createConfiguredZephyrClient();
 const server = new McpServer(
     {
         name: "jira-confluence-mcp",
-        version: "1.3.2",
+        version: "1.3.3",
     },
     {
         capabilities: {

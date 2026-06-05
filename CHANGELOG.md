@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-06-05
+
+### Исправлено
+
+- `npx github:...` падал из‑за скрипта `"build"` в `package.json` ([npm/cli#4003](https://github.com/npm/cli/issues/4003)): скрипт переименован в `compile`; в ветке `dist` — runtime-only manifest без `devDependencies` и compile-скриптов.
+
 ## [1.3.2] - 2026-06-05
 
 ### Добавлено

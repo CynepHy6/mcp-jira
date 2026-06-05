@@ -1,6 +1,6 @@
 {
     "name": "mcp-jira",
-    "version": "1.3.2",
+    "version": "1.3.3",
     "description": "MCP server for Jira, Confluence, Insight (Assets), and Zephyr Scale",
     "repository": {
         "type": "git",
@@ -16,8 +16,8 @@
         "mcp-jira": "./build/index.js"
     },
     "scripts": {
-        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
-        "prepublishOnly": "npm run build",
+        "compile": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+        "prepublishOnly": "npm run compile",
         "start": "node ./build/index.js",
         "test": "jest",
         "test:watch": "jest --watch",

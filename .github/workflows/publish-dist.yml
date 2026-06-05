@@ -32,8 +32,8 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build
-        run: npm run build
+      - name: Compile
+        run: npm run compile
 
       - name: Publish to dist branch and tag release
         env:
@@ -48,8 +48,40 @@ jobs:
 
           rm -rf "$DIST_DIR"
           mkdir -p "$DIST_DIR/build"
-          cp package.json README.md AGENTS.md LICENSE "$DIST_DIR/"
+          cp README.md AGENTS.md LICENSE "$DIST_DIR/"
           cp -r build/. "$DIST_DIR/build/"
+
+          node <<'NODE'
+          const fs = require("fs");
+          const path = process.env.DIST_DIR;
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+
+          // npx + github: breaks when package.json has a "build" script (npm/cli#4003).
+          // dist ships precompiled build/ — runtime-only manifest, no devDeps, no compile scripts.
+          const distPkg = {
+            name: pkg.name,
+            version: pkg.version,
+            description: pkg.description,
+            repository: pkg.repository,
+            bugs: pkg.bugs,
+            homepage: pkg.homepage,
+            main: pkg.main,
+            type: pkg.type,
+            bin: pkg.bin,
+            scripts: { start: pkg.scripts.start },
+            files: pkg.files,
+            keywords: pkg.keywords,
+            author: pkg.author,
+            license: pkg.license,
+            engines: pkg.engines,
+            dependencies: pkg.dependencies,
+          };
+
+          fs.writeFileSync(
+            `${path}/package.json`,
+            `${JSON.stringify(distPkg, null, 4)}\n`,
+          );
+          NODE
 
           cd "$DIST_DIR"
           git init

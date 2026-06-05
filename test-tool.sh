@@ -14,7 +14,7 @@ TOOL_NAME="$1"
 ARGUMENTS="$2"
 
 echo "🔨 Сборка проекта..."
-npm run build
+npm run compile
 
 if [ $? -ne 0 ]; then
     echo "❌ Ошибка сборки!"
