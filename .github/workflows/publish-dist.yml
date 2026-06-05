@@ -1,0 +1,54 @@
+name: Publish dist branch
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to dist branch
+        env:
+          DIST_DIR: ${{ runner.temp }}/mcp-jira-dist
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          rm -rf "$DIST_DIR"
+          mkdir -p "$DIST_DIR/build"
+          cp package.json README.md AGENTS.md LICENSE "$DIST_DIR/"
+          cp -r build/. "$DIST_DIR/build/"
+
+          cd "$DIST_DIR"
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b dist
+          git add .
+          git commit -m "Build from ${GITHUB_SHA}"
+
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" dist:dist

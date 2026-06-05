@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-06-05
+
+### Добавлено
+
+- Запуск через `npx -y github:CynepHy6/mcp-jira#dist` без клона: `bin`, shebang, GitHub Action публикует `build/` в ветку `dist`.
+
+### Изменено
+
+- README: npx quick start; локальный клон — альтернатива.
+- `mcp-config.example.json` — пример с npx и `env`.
+
+## [1.3.1] - 2026-06-05
+
 ### Добавлено
 
 - **`delete-zephyr-testcase`** — удаление test case по ключу или URL (`confirm: true` обязателен).

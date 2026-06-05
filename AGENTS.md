@@ -1,17 +1,35 @@
 # mcp-jira — инструкции для агента
 
-MCP-сервер: Jira, Confluence, Insight (Assets), Zephyr Scale. Точка входа — `src/index.ts` (регистрация tools), после правок: `npm run build` и reload MCP в Cursor.
+MCP-сервер: Jira, Confluence, Insight (Assets), Zephyr Scale. Точка входа — `src/index.ts` (регистрация tools), после правок: `npm run build`, push в `master` (CI обновит ветку `dist` для npx) и reload MCP в Cursor.
 
 Подробности для людей — [README.md](README.md). История версий — [CHANGELOG.md](CHANGELOG.md).
 
 ## Конфигурация
 
-- Клон: `git clone https://github.com/CynepHy6/mcp-jira.git`
+### npx (без клона)
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "github:CynepHy6/mcp-jira#dist"],
+  "env": {
+    "JIRA_HOST": "https://jira.example.com",
+    "JIRA_USERNAME": "login",
+    "JIRA_API_TOKEN": "pat"
+  }
+}
+```
+
+Креды **только в `env` MCP-конфига**. `dotenv` из `.env` пакета не рассчитан на этот режим.
+
+### Локальный клон
+
+- `git clone https://github.com/CynepHy6/mcp-jira.git`
 - `.env` в корне репозитория (см. `.env.example`). `index.ts` подхватывает его через `dotenv` из `build/` → `../.env`.
 - Cursor MCP: `node` + `build/index.js`; переменные можно задать в `env` блока MCP или только в `.env`.
 - **Jira Server/Data Center** (`*.skyeng.link` и аналоги): PAT → `Authorization: Bearer` (`src/clients/jira-client.ts`).
 - **Atlassian Cloud**: email + API token → Basic Auth.
-- Confluence и Insight используют те же или отдельные креды (`CONFLUENCE_*`).
+- Confluence — отдельные `CONFLUENCE_*`; **`CONFLUENCE_API_TOKEN` ≠ `JIRA_API_TOKEN`** (токены создаются отдельно, username может совпадать). Insight использует `JIRA_*`.
 
 ## Структура кода
 

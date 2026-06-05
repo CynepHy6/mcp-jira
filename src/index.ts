@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as dotenv from "dotenv";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -132,7 +133,7 @@ const zephyr = createConfiguredZephyrClient();
 const server = new McpServer(
     {
         name: "jira-confluence-mcp",
-        version: "1.3.1",
+        version: "1.3.2",
     },
     {
         capabilities: {

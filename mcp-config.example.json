@@ -1,12 +1,15 @@
 {
     "mcpServers": {
         "jira": {
-            "command": "node",
-            "args": ["/absolute/path/to/mcp-jira/build/index.js"],
+            "command": "npx",
+            "args": ["-y", "github:CynepHy6/mcp-jira#dist"],
             "env": {
-                "JIRA_HOST": "your-company.atlassian.net",
-                "JIRA_USERNAME": "your.email@company.com",
-                "JIRA_API_TOKEN": "your_personal_access_token_here"
+                "JIRA_HOST": "https://jira.yourcompany.com",
+                "JIRA_USERNAME": "your_login",
+                "JIRA_API_TOKEN": "your_jira_personal_access_token",
+                "CONFLUENCE_HOST": "https://confluence.yourcompany.com",
+                "CONFLUENCE_USERNAME": "your_login",
+                "CONFLUENCE_API_TOKEN": "your_confluence_personal_access_token"
             }
         }
     }
