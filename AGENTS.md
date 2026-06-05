@@ -164,12 +164,9 @@ npm run compile
 | 400 `Required custom fields` | не переданы `customFields` на create |
 | 400 `option X was not found` | неверное значение custom field для проекта |
 | 500 `Unrecognized field "index"` | в steps попали поля из GET-ответа |
-| UI Zephyr 503 | браузерная сессия; использовать REST tools |
 
 ## Чего нет
 
-- UI Zephyr/Jira (Tests.jspa) — только REST.
 - Переименование/clone testcase одним вызовом.
-- Поиск только по numeric `projectId` — нужен `projectKey` (из wdio или inspect/search).
 
 Не хардкодить в docs и tool descriptions внутренние ключи проектов компании — использовать нейтральные `PROJ-T123`.

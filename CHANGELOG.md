@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-06-05
+
+### Изменено
+
+- Zephyr tools: в MCP descriptions добавлены заметки про 503 на Tests.jspa (UI только с Jira-сессией) и про `projectId` vs `projectKey`; дубли убраны из AGENTS.md.
+
 ## [1.3.3] - 2026-06-05
 
 ### Исправлено

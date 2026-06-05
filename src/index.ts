@@ -120,6 +120,11 @@ import {
     updateZephyrTestCaseHandler,
     updateZephyrTestCaseSchema,
 } from "./tools/zephyr/update-zephyr-testcase.js";
+import {
+    withZephyrNotes,
+    ZEPHYR_PROJECT_KEY_NOTE,
+    ZEPHYR_REST_ONLY_NOTE,
+} from "./utils/zephyr-tool-notes.js";
 
 // Initialize clients
 const jiraConfig = getJiraConfig();
@@ -133,7 +138,7 @@ const zephyr = createConfiguredZephyrClient();
 const server = new McpServer(
     {
         name: "jira-confluence-mcp",
-        version: "1.3.3",
+        version: "1.3.4",
     },
     {
         capabilities: {
@@ -215,63 +220,92 @@ server.tool(
 
 server.tool(
     "inspect-zephyr-project",
-    "PRIMARY for test-wdio → Zephyr setup: inspect an unfamiliar Zephyr project before creating cases. Returns observed custom field values, folder examples, and sample cases. Use projectKey from test-wdio --qaseProject.",
+    withZephyrNotes(
+        "PRIMARY for test-wdio → Zephyr setup: inspect an unfamiliar Zephyr project before creating cases. Returns observed custom field values, folder examples, and sample cases. Use projectKey from test-wdio --qaseProject.",
+        ZEPHYR_REST_ONLY_NOTE,
+        ZEPHYR_PROJECT_KEY_NOTE,
+    ),
     inspectZephyrProjectSchema,
     inspectZephyrProjectHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "upsert-zephyr-testcase",
-    "PRIMARY for test-wdio → Zephyr sync after adding or changing wdio tests. Pass wdioItTitle (full it() string), precondition, testScriptPlainText. If title ends with #PREFIX-Tnnn → update name/steps/precondition; otherwise create a new case and return the key to append to it(). On create, pass projectKey (--qaseProject) or inheritCustomFieldsFrom a sibling case.",
+    withZephyrNotes(
+        "PRIMARY for test-wdio → Zephyr sync after adding or changing wdio tests. Pass wdioItTitle (full it() string), precondition, testScriptPlainText. If title ends with #PREFIX-Tnnn → update name/steps/precondition; otherwise create a new case and return the key to append to it(). On create, pass projectKey (--qaseProject) or inheritCustomFieldsFrom a sibling case.",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     upsertZephyrTestCaseSchema,
     upsertZephyrTestCaseHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "get-zephyr-testcase",
-    "Read one Zephyr case before updating or to compare with a changed test-wdio spec. For bulk sync prefer upsert-zephyr-testcase.",
+    withZephyrNotes(
+        "Read one Zephyr case before updating or to compare with a changed test-wdio spec. For bulk sync prefer upsert-zephyr-testcase. Accepts test case key or Tests.jspa #/testCase/KEY URL (URL is parsed for the key only — do not fetch the URL).",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     getZephyrTestCaseSchema,
     getZephyrTestCaseHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "search-zephyr-testcases",
-    "Find Zephyr cases by projectKey/text when the #PREFIX-Tnnn key is unknown or you need a reference case for inheritCustomFieldsFrom.",
+    withZephyrNotes(
+        "Find Zephyr cases by projectKey when the #PREFIX-Tnnn key is unknown or you need a reference case for inheritCustomFieldsFrom.",
+        ZEPHYR_REST_ONLY_NOTE,
+        ZEPHYR_PROJECT_KEY_NOTE,
+    ),
     searchZephyrTestCasesSchema,
     searchZephyrTestCasesHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "create-zephyr-testcase",
-    "Low-level create. Prefer upsert-zephyr-testcase for test-wdio workflows.",
+    withZephyrNotes(
+        "Low-level create. Prefer upsert-zephyr-testcase for test-wdio workflows.",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     createZephyrTestCaseSchema,
     createZephyrTestCaseHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "update-zephyr-testcase",
-    "Low-level update by key. Prefer upsert-zephyr-testcase with wdioItTitle or testCaseKeyOrUrl for test-wdio workflows.",
+    withZephyrNotes(
+        "Low-level update by key. Prefer upsert-zephyr-testcase with wdioItTitle or testCaseKeyOrUrl for test-wdio workflows.",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     updateZephyrTestCaseSchema,
     updateZephyrTestCaseHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "delete-zephyr-testcase",
-    "Permanently delete a Zephyr test case by key or URL. Requires confirm=true. Use when a case is obsolete (e.g. replaced in test-wdio by another key). Call get-zephyr-testcase first to verify the target.",
+    withZephyrNotes(
+        "Permanently delete a Zephyr test case by key or URL. Requires confirm=true. Use when a case is obsolete (e.g. replaced in test-wdio by another key). Call get-zephyr-testcase first to verify the target.",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     deleteZephyrTestCaseSchema,
     deleteZephyrTestCaseHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "create-zephyr-testrun",
-    "Create a Zephyr Scale test run for a project.",
+    withZephyrNotes(
+        "Create a Zephyr Scale test run for a project.",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     createZephyrTestRunSchema,
     createZephyrTestRunHandler(zephyr, jiraConfig) as any,
 );
 
 server.tool(
     "send-zephyr-test-result",
-    "Record Pass/Fail/Blocked/Not Executed result for a testcase inside a Zephyr test run.",
+    withZephyrNotes(
+        "Record Pass/Fail/Blocked/Not Executed result for a testcase inside a Zephyr test run.",
+        ZEPHYR_REST_ONLY_NOTE,
+    ),
     sendZephyrTestResultSchema,
     sendZephyrTestResultHandler(zephyr, jiraConfig) as any,
 );
