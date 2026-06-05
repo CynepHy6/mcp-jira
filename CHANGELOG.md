@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+### Добавлено
+
+- **`delete-zephyr-testcase`** — удаление test case по ключу или URL (`confirm: true` обязателен).
+
+### Изменено
+
+- Документация: подробный [AGENTS.md](AGENTS.md) для агентов; [README.md](README.md) сокращён до quick start.
+
+## [1.3.0] - 2026-06-05
+
+### Добавлено
+
+- Инструменты Zephyr Scale (REST `/rest/atm/1.0`): `get-zephyr-testcase`, `search-zephyr-testcases`, `create-zephyr-testcase`, `update-zephyr-testcase`, `create-zephyr-testrun`, `send-zephyr-test-result`.
+- **`inspect-zephyr-project`** и **`upsert-zephyr-testcase`** — основной agent-friendly flow для синхронизации test-wdio ↔ Zephyr (create/update по `#PREFIX-Tnnn` в `it()`).
+- Чтение и запись test cases / test runs / test results через тот же Jira PAT (`JIRA_API_TOKEN`).
+
 ## [1.2.0] - 2026-06-05
 
 ### Добавлено

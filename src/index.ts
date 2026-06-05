@@ -32,6 +32,7 @@ import {
     createConfiguredJiraClient,
     getJiraConfig,
 } from "./clients/jira-client.js";
+import { createConfiguredZephyrClient } from "./clients/zephyr-client.js";
 
 // Import tool handlers
 import {
@@ -82,6 +83,42 @@ import {
     searchInsightAssetsHandler,
     searchInsightAssetsSchema,
 } from "./tools/insight/search-insight-assets.js";
+import {
+    deleteZephyrTestCaseHandler,
+    deleteZephyrTestCaseSchema,
+} from "./tools/zephyr/delete-zephyr-testcase.js";
+import {
+    inspectZephyrProjectHandler,
+    inspectZephyrProjectSchema,
+} from "./tools/zephyr/inspect-zephyr-project.js";
+import {
+    createZephyrTestCaseHandler,
+    createZephyrTestCaseSchema,
+} from "./tools/zephyr/create-zephyr-testcase.js";
+import {
+    upsertZephyrTestCaseHandler,
+    upsertZephyrTestCaseSchema,
+} from "./tools/zephyr/upsert-zephyr-testcase.js";
+import {
+    createZephyrTestRunHandler,
+    createZephyrTestRunSchema,
+} from "./tools/zephyr/create-zephyr-testrun.js";
+import {
+    getZephyrTestCaseHandler,
+    getZephyrTestCaseSchema,
+} from "./tools/zephyr/get-zephyr-testcase.js";
+import {
+    searchZephyrTestCasesHandler,
+    searchZephyrTestCasesSchema,
+} from "./tools/zephyr/search-zephyr-testcases.js";
+import {
+    sendZephyrTestResultHandler,
+    sendZephyrTestResultSchema,
+} from "./tools/zephyr/send-zephyr-test-result.js";
+import {
+    updateZephyrTestCaseHandler,
+    updateZephyrTestCaseSchema,
+} from "./tools/zephyr/update-zephyr-testcase.js";
 
 // Initialize clients
 const jiraConfig = getJiraConfig();
@@ -89,12 +126,13 @@ const confluenceConfig = getConfluenceConfig();
 const jira = createConfiguredJiraClient();
 const confluence = createConfiguredConfluenceClient();
 const insight = createConfiguredInsightClient();
+const zephyr = createConfiguredZephyrClient();
 
 // Initialize MCP server
 const server = new McpServer(
     {
         name: "jira-confluence-mcp",
-        version: "1.2.0",
+        version: "1.3.1",
     },
     {
         capabilities: {
@@ -172,6 +210,69 @@ server.tool(
     "Search Jira Insight (Assets) objects using IQL. Use for finding teams, services, people and other CMDB objects.",
     searchInsightAssetsSchema,
     searchInsightAssetsHandler(insight, jiraConfig) as any,
+);
+
+server.tool(
+    "inspect-zephyr-project",
+    "PRIMARY for test-wdio → Zephyr setup: inspect an unfamiliar Zephyr project before creating cases. Returns observed custom field values, folder examples, and sample cases. Use projectKey from test-wdio --qaseProject.",
+    inspectZephyrProjectSchema,
+    inspectZephyrProjectHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "upsert-zephyr-testcase",
+    "PRIMARY for test-wdio → Zephyr sync after adding or changing wdio tests. Pass wdioItTitle (full it() string), precondition, testScriptPlainText. If title ends with #PREFIX-Tnnn → update name/steps/precondition; otherwise create a new case and return the key to append to it(). On create, pass projectKey (--qaseProject) or inheritCustomFieldsFrom a sibling case.",
+    upsertZephyrTestCaseSchema,
+    upsertZephyrTestCaseHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "get-zephyr-testcase",
+    "Read one Zephyr case before updating or to compare with a changed test-wdio spec. For bulk sync prefer upsert-zephyr-testcase.",
+    getZephyrTestCaseSchema,
+    getZephyrTestCaseHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "search-zephyr-testcases",
+    "Find Zephyr cases by projectKey/text when the #PREFIX-Tnnn key is unknown or you need a reference case for inheritCustomFieldsFrom.",
+    searchZephyrTestCasesSchema,
+    searchZephyrTestCasesHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "create-zephyr-testcase",
+    "Low-level create. Prefer upsert-zephyr-testcase for test-wdio workflows.",
+    createZephyrTestCaseSchema,
+    createZephyrTestCaseHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "update-zephyr-testcase",
+    "Low-level update by key. Prefer upsert-zephyr-testcase with wdioItTitle or testCaseKeyOrUrl for test-wdio workflows.",
+    updateZephyrTestCaseSchema,
+    updateZephyrTestCaseHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "delete-zephyr-testcase",
+    "Permanently delete a Zephyr test case by key or URL. Requires confirm=true. Use when a case is obsolete (e.g. replaced in test-wdio by another key). Call get-zephyr-testcase first to verify the target.",
+    deleteZephyrTestCaseSchema,
+    deleteZephyrTestCaseHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "create-zephyr-testrun",
+    "Create a Zephyr Scale test run for a project.",
+    createZephyrTestRunSchema,
+    createZephyrTestRunHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "send-zephyr-test-result",
+    "Record Pass/Fail/Blocked/Not Executed result for a testcase inside a Zephyr test run.",
+    sendZephyrTestResultSchema,
+    sendZephyrTestResultHandler(zephyr, jiraConfig) as any,
 );
 
 // Register Confluence tools
