@@ -11,6 +11,7 @@ MCP сервер для интеграции с Jira и Confluence. Позвол
 - Поддержка Atlassian Cloud (API Token)
 - Получение описания задач
 - Получение комментариев к задачам
+- **Insight (Assets)**: получение объекта по ключу/URL и поиск через IQL
 - **Поиск задач** по названию и описанию с фильтрацией
 - **Анализ ворклогов** за любой период времени
 - **Детальные отчеты** с описаниями задач и затраченным временем
@@ -97,6 +98,8 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 ./test-tool.sh search-issues '{"query": "API", "maxResults": 5}'
 ./test-tool.sh get-worklogs '{"startDate": "2024-01-01", "endDate": "2024-01-31"}'
 ./test-tool.sh get-confluence-page '{"pageIdOrUrl": "123456"}'
+./test-tool.sh get-insight-asset '{"objectKeyOrUrl": "INFRA-1097573"}'
+./test-tool.sh search-insight-assets '{"iql": "Name = \\"Growth\\"", "maxResults": 5}'
 ./test-tool.sh create-confluence-page '{"spaceKey": "ENG", "title": "Runbook", "content": "<p>Hello</p>"}'
 ./test-tool.sh edit-confluence-page '{"pageIdOrUrl": "123456", "title": "Updated Runbook", "content": "<p>Updated</p>"}'
 ```
@@ -149,6 +152,15 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 - `username` - логин пользователя (опционально)
 - `projectKeys` - фильтр по проектам
 
+#### `get-insight-asset`
+Получение объекта Jira Insight (Assets):
+- `objectKeyOrUrl` - ключ объекта (`INFRA-1097573`), числовой id или URL вида `/secure/insight/assets/INFRA-1097573`
+
+#### `search-insight-assets`
+Поиск объектов Insight через IQL:
+- `iql` - IQL-запрос, например `Key = "INFRA-1097573"` или `Name = "Growth"`
+- `maxResults` - максимальное количество результатов (по умолчанию: 20, максимум: 100)
+
 ### Confluence
 
 #### `create-confluence-page`
@@ -181,6 +193,7 @@ CONFLUENCE_API_TOKEN=ваш_api_token
 ## Особенности
 
 ### Jira
+- **Insight (Assets)**: REST API `/rest/insight/1.0` с тем же PAT, что и для Jira; HTML-страницы Insight по-прежнему требуют браузерную сессию
 - **Исключение коммуникационных задач**: Автоматически фильтрует подзадачи с суффиксом "communications" (обсуждения, код-ревью)
 - **Форматирование времени**: Отображение в днях, часах и минутах (8-часовой рабочий день)
 - **Поддержка временных зон**: Корректная работа с датами ворклогов

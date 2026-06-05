@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-05
+
+### Добавлено
+
+- Инструмент `get-insight-asset` для получения объектов Jira Insight (Assets) по ключу, id или URL.
+- Инструмент `search-insight-assets` для поиска объектов Insight через IQL.
+
+## [1.1.1] - 2026-05-18
+
 ### Добавлено
 
 - Инструмент `edit-confluence-page` для редактирования заголовка и содержимого страниц Confluence по ID или URL.

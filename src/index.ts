@@ -26,6 +26,9 @@ import {
     getConfluenceConfig,
 } from "./clients/confluence-client.js";
 import {
+    createConfiguredInsightClient,
+} from "./clients/insight-client.js";
+import {
     createConfiguredJiraClient,
     getJiraConfig,
 } from "./clients/jira-client.js";
@@ -71,18 +74,27 @@ import {
     searchIssuesHandler,
     searchIssuesSchema,
 } from "./tools/jira/search-issues.js";
+import {
+    getInsightAssetHandler,
+    getInsightAssetSchema,
+} from "./tools/insight/get-insight-asset.js";
+import {
+    searchInsightAssetsHandler,
+    searchInsightAssetsSchema,
+} from "./tools/insight/search-insight-assets.js";
 
 // Initialize clients
 const jiraConfig = getJiraConfig();
 const confluenceConfig = getConfluenceConfig();
 const jira = createConfiguredJiraClient();
 const confluence = createConfiguredConfluenceClient();
+const insight = createConfiguredInsightClient();
 
 // Initialize MCP server
 const server = new McpServer(
     {
         name: "jira-confluence-mcp",
-        version: "1.1.0",
+        version: "1.2.0",
     },
     {
         capabilities: {
@@ -146,6 +158,20 @@ server.tool(
     "Get worklogs for standard time periods (yours or a colleague's)",
     getRecentWorklogsSchema,
     getRecentWorklogsHandler(jira, jiraConfig) as any,
+);
+
+server.tool(
+    "get-insight-asset",
+    "Get a Jira Insight (Assets) object by object key, numeric id, or Insight asset URL. Use this when a link like /secure/insight/assets/INFRA-123 is mentioned.",
+    getInsightAssetSchema,
+    getInsightAssetHandler(insight, jiraConfig) as any,
+);
+
+server.tool(
+    "search-insight-assets",
+    "Search Jira Insight (Assets) objects using IQL. Use for finding teams, services, people and other CMDB objects.",
+    searchInsightAssetsSchema,
+    searchInsightAssetsHandler(insight, jiraConfig) as any,
 );
 
 // Register Confluence tools
