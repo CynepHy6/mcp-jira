@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-06-05
+
+### Изменено
+
+- Маршрутизация Jira/Zephyr/Insight: `instructions` на уровне MCP-сервера (`MCP_SERVER_INSTRUCTIONS`); дубли про Tests.jspa/WebFetch/projectId убраны из descriptions Zephyr-tools.
+
 ## [1.3.4] - 2026-06-05
 
 ### Изменено

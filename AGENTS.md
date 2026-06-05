@@ -1,6 +1,6 @@
 # mcp-jira — инструкции для агента
 
-MCP-сервер: Jira, Confluence, Insight (Assets), Zephyr Scale. Точка входа — `src/index.ts` (регистрация tools), после правок: `npm run compile`, **поднять `version` в `package.json`**, push в `master` (CI → `dist` + git-тег `v{version}`) и reload MCP в Cursor.
+MCP-сервер: Jira, Confluence, Insight (Assets), Zephyr Scale. Точка входа — `src/index.ts` (регистрация tools + `instructions`), маршрутизация URL → tools — `src/utils/mcp-server-instructions.ts`. После правок: `npm run compile`, **поднять `version` в `package.json`**, push в `master` (CI → `dist` + git-тег `v{version}`) и reload MCP в Cursor.
 
 Подробности для людей — [README.md](README.md). История версий — [CHANGELOG.md](CHANGELOG.md).
 
