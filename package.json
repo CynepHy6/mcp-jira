@@ -1,0 +1,48 @@
+{
+    "name": "mcp-jira",
+    "version": "1.3.3",
+    "description": "MCP server for Jira, Confluence, Insight (Assets), and Zephyr Scale",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CynepHy6/mcp-jira.git"
+    },
+    "bugs": {
+        "url": "https://github.com/CynepHy6/mcp-jira/issues"
+    },
+    "homepage": "https://github.com/CynepHy6/mcp-jira#readme",
+    "main": "build/index.js",
+    "type": "module",
+    "bin": {
+        "mcp-jira": "./build/index.js"
+    },
+    "scripts": {
+        "start": "node ./build/index.js"
+    },
+    "files": [
+        "build",
+        "README.md",
+        "AGENTS.md",
+        "LICENSE"
+    ],
+    "keywords": [
+        "mcp",
+        "jira",
+        "confluence",
+        "atlassian",
+        "cursor",
+        "npx",
+        "zephyr"
+    ],
+    "author": "",
+    "license": "ISC",
+    "engines": {
+        "node": ">=18"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.4.0",
+        "axios": "^1.11.0",
+        "dotenv": "^16.4.7",
+        "jira.js": "^5.2.2",
+        "zod": "^3.24.2"
+    }
+}

@@ -1,0 +1,175 @@
+# mcp-jira — инструкции для агента
+
+MCP-сервер: Jira, Confluence, Insight (Assets), Zephyr Scale. Точка входа — `src/index.ts` (регистрация tools), после правок: `npm run compile`, **поднять `version` в `package.json`**, push в `master` (CI → `dist` + git-тег `v{version}`) и reload MCP в Cursor.
+
+Подробности для людей — [README.md](README.md). История версий — [CHANGELOG.md](CHANGELOG.md).
+
+## Конфигурация
+
+### npx (без клона)
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "github:CynepHy6/mcp-jira#semver:^1"],
+  "env": {
+    "JIRA_HOST": "https://jira.example.com",
+    "JIRA_USERNAME": "login",
+    "JIRA_API_TOKEN": "pat"
+  }
+}
+```
+
+Креды **только в `env` MCP-конфига**. `dotenv` из `.env` пакета не рассчитан на этот режим.
+
+Релиз: bump `version` в `package.json` → push `master` → CI → `dist` + git-тег `v{version}`.
+
+**Скрипт сборки — `compile`, не `build`:** см. `.cursor/rules/mcp-server-development.mdc` (npm/cli#4003). На `dist` уходит runtime-only `package.json` без `devDependencies` и compile-скриптов.
+
+**Ref в `args`** (теги совпадают с `v` + `package.json` version):
+
+```json
+"github:CynepHy6/mcp-jira#semver:^1"
+"github:CynepHy6/mcp-jira#v1.3.2"
+"github:CynepHy6/mcp-jira#semver:1.3.2"
+"github:CynepHy6/mcp-jira#dist"
+```
+
+- `#semver:^1` — последний `v1.x` (не `#^1`).
+- `#v1.3.2` — конкретная версия.
+- `#semver:1.3.2` — та же версия через semver-resolver.
+- `#dist` — HEAD ветки без тега.
+
+После смены ref или нового тега: `npx clear-npx-cache`, reload MCP.
+
+### Локальный клон
+
+- `git clone https://github.com/CynepHy6/mcp-jira.git`
+- `.env` в корне репозитория (см. `.env.example`). `index.ts` подхватывает его через `dotenv` из `build/` → `../.env`.
+- Cursor MCP: `node` + `build/index.js`; переменные можно задать в `env` блока MCP или только в `.env`.
+- **Jira Server/Data Center** (`*.skyeng.link` и аналоги): PAT → `Authorization: Bearer` (`src/clients/jira-client.ts`).
+- **Atlassian Cloud**: email + API token → Basic Auth.
+- Confluence — отдельные `CONFLUENCE_*`; **`CONFLUENCE_API_TOKEN` ≠ `JIRA_API_TOKEN`** (токены создаются отдельно, username может совпадать). Insight использует `JIRA_*`.
+
+## Структура кода
+
+```text
+src/
+  index.ts              # регистрация MCP tools, auth check при старте
+  clients/
+    jira-client.ts      # jira.js Version2Client
+    confluence-client.ts
+    insight-client.ts   # axios → /rest/insight/1.0
+    zephyr-client.ts    # axios → /rest/atm/1.0
+  tools/
+    jira/               # issues, worklogs
+    confluence/
+    insight/
+    zephyr/             # test cases, runs, results
+  utils/
+    zephyr-utils.ts     # форматирование, extract key из URL
+    zephyr-wdio-sync.ts # parse it(), upsert helpers, inspect project
+    validation.ts       # проверка env
+tests/
+  tools/                # nock-интеграции handlers
+  src/                  # unit-тесты utils
+```
+
+**Паттерн нового tool:** `tools/<area>/<name>.ts` экспортирует `*Schema` (zod) и `*Handler(client, config)` → регистрация в `index.ts` через `server.tool(...)`.
+
+## Какой tool вызывать
+
+### Jira issues (начинать с задачи)
+
+| Задача | Tool |
+|--------|------|
+| Контекст по тикету | `read-description`, затем `read-comments` |
+| Поиск связанных задач | `search-issues` |
+| Ворклоги | `get-recent-worklogs`, `get-worklogs-by-days`, `get-worklogs` |
+
+### Insight (Assets)
+
+| Задача | Tool |
+|--------|------|
+| Объект по ключу/URL | `get-insight-asset` |
+| Поиск IQL | `search-insight-assets` |
+
+### Confluence
+
+| Задача | Tool |
+|--------|------|
+| Прочитать страницу | `get-confluence-page` |
+| Найти страницу | `search-confluence-pages` |
+| Создать / править | `create-confluence-page`, `edit-confluence-page` |
+
+Контент — **Confluence Storage Format** (HTML/XML).
+
+### Zephyr Scale
+
+| Задача | Tool |
+|--------|------|
+| Незнакомый проект, custom fields, папки | **`inspect-zephyr-project`** |
+| Sync после правок test-wdio | **`upsert-zephyr-testcase`** |
+| Прочитать один кейс | `get-zephyr-testcase` |
+| Найти кейс / reference для custom fields | `search-zephyr-testcases` |
+| Удалить устаревший кейс | `delete-zephyr-testcase` (`confirm: true`, сначала `get`) |
+| CI: test run + результат | `create-zephyr-testrun`, `send-zephyr-test-result` |
+| Низкоуровневый create/update | `create-zephyr-testcase`, `update-zephyr-testcase` |
+
+**Primary для test-wdio:** `inspect-zephyr-project` → `upsert-zephyr-testcase`. Остальные — вспомогательные.
+
+## test-wdio ↔ Zephyr
+
+Связь в коде: суффикс в `it('... #PREFIX-Tnnn')`. Reporter шлёт результаты прогона по **ключу из title**, не по `--qaseProject`.
+
+### Upsert-логика
+
+- `wdioItTitle` — полная строка `it('...')`.
+- Есть `#PREFIX-Tnnn` в конце → **update** кейса с этим ключом.
+- Нет суффикса → **create**; нужен `projectKey` (= `--qaseProject` в wdio) или `inheritCustomFieldsFrom`.
+- Поля: `precondition`, `testScriptPlainText` (многострочные шаги), опционально `folder`, `customFields`, `automationStatus`.
+
+После create tool возвращает строку для добавления `#KEY-Tnnn` в `it()`.
+
+### Ограничения Zephyr API (важно)
+
+- Ключ кейса (`PROJ-T123`) **не переименовать** — смена id = create нового + правка wdio + delete старого.
+- **Папку** меняют через update (`folder`), ключ тот же.
+- **projectKey** у существующего кейса не переносят — другой проект = новый кейс.
+- На create часто обязательны **project-specific `customFields`** — брать из `inspect-zephyr-project` или `inheritCustomFieldsFrom`.
+- PUT/POST testcase: в `testScript.steps` **без** полей `index`/`id` (только `description`, опционально `testData`, `expectedResult`).
+- `testScriptPlainText` конвертируется в STEP_BY_STEP с `<br />` (`src/utils/zephyr-wdio-sync.ts`).
+
+### Миграция «старый ключ → новый»
+
+1. Create новых кейсов (`upsert` без `#` в title или с новым projectKey).
+2. Обновить `#…` в test-wdio spec.
+3. `get-zephyr-testcase` → `delete-zephyr-testcase` для каждого obsolete ключа.
+
+## Отладка
+
+```bash
+npm run compile
+./test-tool.sh upsert-zephyr-testcase '{"projectKey":"PROJ","wdioItTitle":"Example test","testScriptPlainText":"Шаг 1: action"}'
+./test-tool.sh delete-zephyr-testcase '{"testCaseKeyOrUrl":"PROJ-T123","confirm":true}'
+```
+
+Тесты: `npm test`. После изменений в `src/` — `npm run compile` + точечный тест в `tests/tools/` или `tests/src/`.
+
+## Частые ошибки API
+
+| Симптом | Причина |
+|---------|---------|
+| 401 | неверный PAT / не Bearer для Server DC |
+| 400 `Required custom fields` | не переданы `customFields` на create |
+| 400 `option X was not found` | неверное значение custom field для проекта |
+| 500 `Unrecognized field "index"` | в steps попали поля из GET-ответа |
+| UI Zephyr 503 | браузерная сессия; использовать REST tools |
+
+## Чего нет
+
+- UI Zephyr/Jira (Tests.jspa) — только REST.
+- Переименование/clone testcase одним вызовом.
+- Поиск только по numeric `projectId` — нужен `projectKey` (из wdio или inspect/search).
+
+Не хардкодить в docs и tool descriptions внутренние ключи проектов компании — использовать нейтральные `PROJ-T123`.
