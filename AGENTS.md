@@ -77,6 +77,18 @@ tests/
 
 **Паттерн нового tool:** `tools/<area>/<name>.ts` экспортирует `*Schema` (zod) и `*Handler(client, config)` → регистрация в `index.ts` через `server.tool(...)`.
 
+## `MCP_SERVER_INSTRUCTIONS`
+
+Единая маршрутизация URL → tools: `src/utils/mcp-server-instructions.ts` → `InitializeResult.instructions` в `src/index.ts`. Cursor подмешивает её агенту как `serverUseInstructions` на каждый ход.
+
+**Содержит:** Jira issue → `read-description`; Zephyr (`Tests.jspa`, `*-Tnnn`) → tools этого сервера, без WebFetch/curl UI-URL; `projectId` в hash UI → `projectKey` (`test-wdio --qaseProject`); Insight asset URL → `get-insight-asset` / `search-insight-assets`.
+
+**Не дублировать** те же правила в descriptions отдельных tools — только в `MCP_SERVER_INSTRUCTIONS`.
+
+**Тон ответа пользователю:** instructions задают поведение агента, не преамбулу к ответу. Отдавать полученные данные; не объяснять HTTP/auth/MCP/WebFetch и не называть tool, если пользователь сам не спросил, как данные получены.
+
+**При правке instructions:** только поведенческие указания. Не добавлять формулировки вроде «503», «нужна сессия», «UI не открывается по HTTP» — агент их пересказывает пользователю. Тест: `tests/src/mcp-server-instructions.test.ts`.
+
 ## Какой tool вызывать
 
 ### Jira issues (начинать с задачи)
@@ -117,6 +129,8 @@ tests/
 | Низкоуровневый create/update | `create-zephyr-testcase`, `update-zephyr-testcase` |
 
 **Primary для test-wdio:** `inspect-zephyr-project` → `upsert-zephyr-testcase`. Остальные — вспомогательные.
+
+**Tests.jspa URL:** `#/testCase/KEY` → `get-zephyr-testcase` / update / delete (ключ из URL). `#/v2/testCases?projectId=…` — только навигация UI; для API/search передавать `projectKey`, не numeric `projectId`.
 
 ## test-wdio ↔ Zephyr
 
