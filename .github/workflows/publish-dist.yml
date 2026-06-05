@@ -16,6 +16,10 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Read package version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -31,12 +35,16 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to dist branch
+      - name: Publish to dist branch and tag release
         env:
           DIST_DIR: ${{ runner.temp }}/mcp-jira-dist
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.pkg.outputs.version }}
         run: |
           set -euo pipefail
+
+          TAG="v${VERSION}"
+          REMOTE="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           rm -rf "$DIST_DIR"
           mkdir -p "$DIST_DIR/build"
@@ -49,6 +57,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b dist
           git add .
-          git commit -m "Build from ${GITHUB_SHA}"
+          git commit -m "Release ${TAG} from ${GITHUB_SHA}"
+          git tag -a "${TAG}" -m "Release ${TAG} from master ${GITHUB_SHA}"
 
-          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" dist:dist
+          git push --force "$REMOTE" dist:dist
+          git push --force "$REMOTE" "refs/tags/${TAG}"

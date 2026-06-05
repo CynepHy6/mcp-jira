@@ -11,7 +11,7 @@ MCP-сервер для **Jira**, **Confluence**, **Insight (Assets)** и **Zeph
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "github:CynepHy6/mcp-jira#dist"],
+      "args": ["-y", "github:CynepHy6/mcp-jira#semver:^1"],
       "env": {
         "JIRA_HOST": "https://jira.example.com",
         "JIRA_USERNAME": "your_login",
@@ -32,17 +32,36 @@ MCP-сервер для **Jira**, **Confluence**, **Insight (Assets)** и **Zeph
 | `JIRA_HOST` | Jira, Insight, Zephyr | URL инстанса Jira |
 | `JIRA_USERNAME` | Jira, Insight, Zephyr | Логин или email (Cloud) |
 | `JIRA_API_TOKEN` | Jira, Insight, Zephyr | PAT Jira (отдельный от Confluence) |
-| `JIRA_PASSWORD` | Jira, Insight, Zephyr | Альтернатива токену (Server/DC) |
 | `CONFLUENCE_HOST` | Confluence | URL инстанса Confluence |
 | `CONFLUENCE_USERNAME` | Confluence | Если не задан — берётся `JIRA_USERNAME` |
 | `CONFLUENCE_API_TOKEN` | Confluence | PAT Confluence (создаётся отдельно от Jira) |
-| `CONFLUENCE_PASSWORD` | Confluence | Альтернатива токену; иначе — `JIRA_PASSWORD` |
 
 Insight и Zephyr используют те же `JIRA_*`, отдельных переменных нет. **`JIRA_API_TOKEN` и `CONFLUENCE_API_TOKEN` — разные токены** (даже на одном домене Server/DC); логин можно указать один и тот же.
 
 2. Reload MCP в Cursor.
 
-При первом запуске `npx` скачает ветку **`dist`** с GitHub (сборка из CI, в `master` исходники без `build/`). Отдельная локальная сборка не нужна.
+CI на каждый push в `master` собирает `build/`, публикует ветку **`dist`** и ставит git-тег **`v{version}`** из `package.json` (например `v1.3.2`). Тег указывает на коммит `dist` со сборкой, не на `master`.
+
+### Версия в `args`
+
+CI ставит git-тег **`v{version}`** (из `package.json`). Синтаксис ref:
+
+| Ref | Пример `args` | Когда использовать |
+|-----|---------------|-------------------|
+| последний `v1.x` | `["-y", "github:CynepHy6/mcp-jira#semver:^1"]` | по умолчанию, авто-обновления в мажоре 1 |
+| конкретный тег | `["-y", "github:CynepHy6/mcp-jira#v1.3.2"]` | зафиксировать версию |
+| exact semver | `["-y", "github:CynepHy6/mcp-jira#semver:1.3.2"]` | то же, через semver (ищет тег `v1.3.2`) |
+| HEAD `dist` | `["-y", "github:CynepHy6/mcp-jira#dist"]` | без semver, всегда последняя сборка |
+
+`#^1` **не работает** — для диапазона нужен префикс `#semver:`.
+
+Пример с **конкретной версией**:
+
+```json
+"args": ["-y", "github:CynepHy6/mcp-jira#v1.3.2"]
+```
+
+Обновление на другую версию — сменить ref (например `#v1.3.3`), при необходимости `npx clear-npx-cache`, reload MCP. Перед релизом **поднимите `version` в `package.json`** — иначе CI перезапишет существующий тег.
 
 ## Альтернатива: локальный клон
 
@@ -79,7 +98,8 @@ npm install && npm run build
 |------|----------|
 | [AGENTS.md](AGENTS.md) | агент / быстрый разбор кода, workflows, API-ограничения |
 | [CHANGELOG.md](CHANGELOG.md) | история изменений |
-| [mcp-config.example.json](mcp-config.example.json) | пример MCP-конфига для npx |
+| [mcp-config.example.json](mcp-config.example.json) | MCP-конфиг npx, последний `v1.x` (`#semver:^1`) |
+| [mcp-config.pinned.example.json](mcp-config.pinned.example.json) | MCP-конфиг npx, конкретная версия (`#v1.3.2`) |
 
 ## Проверка локально (разработка)
 

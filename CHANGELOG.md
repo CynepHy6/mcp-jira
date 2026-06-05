@@ -8,7 +8,7 @@
 
 ### Добавлено
 
-- Запуск через `npx -y github:CynepHy6/mcp-jira#dist` без клона: `bin`, shebang, GitHub Action публикует `build/` в ветку `dist`.
+- Запуск через `npx -y github:CynepHy6/mcp-jira#semver:^1` без клона: `bin`, shebang, GitHub Action публикует `build/` в ветку `dist` и тег `v{version}`.
 
 ### Изменено
 
