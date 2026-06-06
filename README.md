@@ -91,4 +91,3 @@ npm install && npm run compile
 | [AGENTS.md](AGENTS.md) | разработка, workflows, API-ограничения |
 | [CHANGELOG.md](CHANGELOG.md) | история релизов |
 | [mcp-config.example.json](mcp-config.example.json) | MCP-конфиг npx, диапазон `v1.x` (`#semver:^1`) |
-| [mcp-config.pinned.example.json](mcp-config.pinned.example.json) | MCP-конфиг npx, конкретная версия (`#v1.3.2`) |
