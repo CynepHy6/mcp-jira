@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig*.json"
+      - ".github/workflows/publish-dist.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +26,17 @@ jobs:
         id: pkg
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Skip publish if version already released
+        id: gate
+        run: |
+          TAG="v${{ steps.pkg.outputs.version }}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "refs/tags/${TAG}"; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${TAG} already released — running tests only, skipping publish."
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,9 +50,11 @@ jobs:
         run: npm test
 
       - name: Compile
+        if: steps.gate.outputs.release == 'true'
         run: npm run compile
 
       - name: Publish to dist branch and tag release
+        if: steps.gate.outputs.release == 'true'
         env:
           DIST_DIR: ${{ runner.temp }}/mcp-atlas-dist
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,7 +67,7 @@ jobs:
 
           rm -rf "$DIST_DIR"
           mkdir -p "$DIST_DIR/build"
-          cp README.md AGENTS.md LICENSE "$DIST_DIR/"
+          cp LICENSE "$DIST_DIR/"
           cp -r build/. "$DIST_DIR/build/"
 
           node <<'NODE'

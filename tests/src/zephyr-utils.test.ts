@@ -4,6 +4,7 @@ import {
     buildZephyrTestCaseUrl,
     extractZephyrTestCaseKey,
     formatAxiosError,
+    formatFolderTree,
     formatZephyrTestCase,
 } from "../../src/utils/zephyr-utils.js";
 
@@ -73,5 +74,53 @@ describe("Zephyr utils", () => {
                 },
             }),
         ).toContain("Required custom fields were not provided");
+    });
+
+    it("formats folder tree with full paths, nesting and index order", () => {
+        const text = formatFolderTree(
+            {
+                projectId: 17801,
+                itemsCount: 334,
+                children: [
+                    {
+                        id: 20,
+                        index: 1,
+                        name: "C1",
+                        itemsCount: 5,
+                        children: [],
+                    },
+                    {
+                        id: 10,
+                        index: 0,
+                        name: "C0",
+                        itemsCount: 183,
+                        children: [
+                            {
+                                id: 11,
+                                index: 0,
+                                name: "Авторизация",
+                                itemsCount: 2,
+                            },
+                        ],
+                    },
+                ],
+            },
+            "GRW",
+        );
+
+        expect(text).toContain("Zephyr folder tree for GRW (projectId 17801)");
+        // sorted by index: C0 (0) before C1 (1)
+        expect(text.indexOf("/C0")).toBeLessThan(text.indexOf("/C1"));
+        // nested child carries the full parent path and its own id/items
+        expect(text).toContain("11 | 2 | /C0/Авторизация");
+        expect(text).toContain("10 | 183 | /C0");
+    });
+
+    it("reports an empty folder tree", () => {
+        const text = formatFolderTree(
+            { projectId: 1, itemsCount: 0, children: [] },
+            "EMPTY",
+        );
+        expect(text).toContain("(no folders in this project)");
     });
 });

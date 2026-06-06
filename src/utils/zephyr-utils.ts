@@ -51,6 +51,28 @@ export interface ZephyrTestResultPayload {
     executionTime?: number;
 }
 
+export interface ZephyrProjectSummary {
+    id: string | number;
+    key: string;
+    name?: string;
+}
+
+export interface ZephyrFolderNode {
+    id: number;
+    projectId?: number;
+    parentId?: number | null;
+    index?: number;
+    name: string;
+    itemsCount?: number;
+    children?: ZephyrFolderNode[];
+}
+
+export interface ZephyrFolderTreeRoot {
+    projectId: number;
+    itemsCount?: number;
+    children?: ZephyrFolderNode[];
+}
+
 export const resolveJiraHost = (host: string): string =>
     host.includes("://") ? host.replace(/\/$/, "") : `https://${host}`;
 
@@ -192,6 +214,41 @@ export const formatZephyrTestCaseList = (
     });
 
     return lines.join("\n").trimEnd();
+};
+
+export const formatFolderTree = (
+    root: ZephyrFolderTreeRoot,
+    projectLabel: string,
+): string => {
+    const lines: string[] = [
+        `Zephyr folder tree for ${projectLabel} (projectId ${root.projectId}).`,
+        `Total test cases in project: ${root.itemsCount ?? "n/a"}.`,
+        "",
+        "folderId | items | path",
+        "(use the path for the testcase `folder` field; use folderId for delete-zephyr-folder)",
+        "",
+    ];
+
+    const walk = (nodes: ZephyrFolderNode[], parentPath: string): void => {
+        const sorted = [...nodes].sort(
+            (a, b) => (a.index ?? 0) - (b.index ?? 0),
+        );
+        for (const node of sorted) {
+            const path = `${parentPath}/${node.name}`;
+            lines.push(`${node.id} | ${node.itemsCount ?? 0} | ${path}`);
+            if (node.children && node.children.length > 0) {
+                walk(node.children, path);
+            }
+        }
+    };
+
+    if (root.children && root.children.length > 0) {
+        walk(root.children, "");
+    } else {
+        lines.push("(no folders in this project)");
+    }
+
+    return lines.join("\n");
 };
 
 export const formatAxiosError = (error: unknown): string => {

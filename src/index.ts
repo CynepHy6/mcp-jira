@@ -33,7 +33,10 @@ import {
     createConfiguredJiraClient,
     getJiraConfig,
 } from "./clients/jira-client.js";
-import { createConfiguredZephyrClient } from "./clients/zephyr-client.js";
+import {
+    createConfiguredZephyrClient,
+    createConfiguredZephyrTestsClient,
+} from "./clients/zephyr-client.js";
 
 // Import tool handlers
 import {
@@ -120,6 +123,18 @@ import {
     updateZephyrTestCaseHandler,
     updateZephyrTestCaseSchema,
 } from "./tools/zephyr/update-zephyr-testcase.js";
+import {
+    getZephyrFolderTreeHandler,
+    getZephyrFolderTreeSchema,
+} from "./tools/zephyr/get-zephyr-folder-tree.js";
+import {
+    createZephyrFolderHandler,
+    createZephyrFolderSchema,
+} from "./tools/zephyr/create-zephyr-folder.js";
+import {
+    deleteZephyrFolderHandler,
+    deleteZephyrFolderSchema,
+} from "./tools/zephyr/delete-zephyr-folder.js";
 import { MCP_SERVER_INSTRUCTIONS } from "./utils/mcp-server-instructions.js";
 
 // Initialize clients
@@ -129,6 +144,7 @@ const jira = createConfiguredJiraClient();
 const confluence = createConfiguredConfluenceClient();
 const insight = createConfiguredInsightClient();
 const zephyr = createConfiguredZephyrClient();
+const zephyrTests = createConfiguredZephyrTestsClient();
 
 // Initialize MCP server
 const server = new McpServer(
@@ -276,6 +292,27 @@ server.tool(
     "Record Pass/Fail/Blocked/Not Executed for a testcase inside a test run.",
     sendZephyrTestResultSchema,
     sendZephyrTestResultHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "get-zephyr-folder-tree",
+    "List the test-case folder tree of a Zephyr project (folderId, item count, full path). Use before creating cases/folders to pick the right path, or before delete-zephyr-folder to get the folderId. Accepts project key, numeric projectId, or a Tests.jspa projectId= URL.",
+    getZephyrFolderTreeSchema,
+    getZephyrFolderTreeHandler(zephyrTests, jiraConfig) as any,
+);
+
+server.tool(
+    "create-zephyr-folder",
+    "Create a Zephyr test-case folder. Pass projectKey and a folder name or full path (optionally parentPath). Use get-zephyr-folder-tree first to see existing paths.",
+    createZephyrFolderSchema,
+    createZephyrFolderHandler(zephyr, jiraConfig) as any,
+);
+
+server.tool(
+    "delete-zephyr-folder",
+    "Permanently delete a Zephyr folder by numeric folderId. Requires confirm=true. Call get-zephyr-folder-tree first to confirm the id and that it is empty.",
+    deleteZephyrFolderSchema,
+    deleteZephyrFolderHandler(zephyrTests, jiraConfig) as any,
 );
 
 // Register Confluence tools

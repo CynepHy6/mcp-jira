@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-06
+
+### Добавлено
+
+- **`get-zephyr-folder-tree`** — дерево папок проекта (`folderId / items / полный путь`); принимает projectKey, числовой projectId или Tests.jspa URL с `projectId=`.
+- **`create-zephyr-folder`** — создание папки по `projectKey` + `name`/`parentPath` + `type` (официальный `atm/1.0 POST /folder`).
+- **`delete-zephyr-folder`** — удаление папки по `folderId` (`confirm: true` обязателен).
+- Чтение дерева и удаление папок используют внутренний `/rest/tests/1.0` API (новый клиент `createZephyrTestsClient`) — недокументированный, чувствителен к версии Jira/Zephyr; создание папок — на официальном `atm/1.0`.
+
+### Изменено
+
+- Репозиторий переименован `mcp-jira` → `mcp-atlas` (ссылки в `package.json`, `README.md`, `AGENTS.md`, конфигах и CI).
+- CI `publish-dist`: `paths`-фильтр на push (запуск только при изменении кода/манифеста) и гейт по версии (publish/compile только если тег `v{version}` ещё не выпущен); `README.md`/`AGENTS.md` больше не копируются в ветку `dist`.
+
 ## [1.3.7] - 2026-06-06
 
 ### Изменено
