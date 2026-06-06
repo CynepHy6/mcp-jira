@@ -1,4 +1,4 @@
-# mcp-jira
+# mcp-atlas
 
 MCP-сервер для **Jira**, **Confluence**, **Insight (Assets)** и **Zephyr Scale** в Cursor.
 
@@ -11,7 +11,7 @@ MCP-сервер для **Jira**, **Confluence**, **Insight (Assets)** и **Zeph
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "github:CynepHy6/mcp-jira#semver:^1"],
+      "args": ["-y", "github:CynepHy6/mcp-atlas#semver:^1"],
       "env": {
         "JIRA_HOST": "https://jira.example.com",
         "JIRA_USERNAME": "your_login",
@@ -42,30 +42,24 @@ Insight и Zephyr используют те же `JIRA_*`, отдельных п
 
 ### Версия в `args`
 
-`npx` скачивает пакет из GitHub по адресу `github:CynepHy6/mcp-jira`. Суффикс после `#` выбирает, **какую версию** установить:
+`npx` скачивает пакет из GitHub по адресу `github:CynepHy6/mcp-atlas`. Суффикс после `#` выбирает, **какую версию** установить:
 
 - каждый релиз помечен git-тегом вида `v1.3.2` (история — в [CHANGELOG.md](CHANGELOG.md));
 - `npx` сохраняет установку в `~/.npm/_npx/<hash>/`, где hash зависит от строки в `args`.
 
 | Ref | Пример `args` | Когда использовать |
 |-----|---------------|-------------------|
-| диапазон `v1.x` | `["-y", "github:CynepHy6/mcp-jira#semver:^1"]` | по умолчанию; при старте MCP подтягивает максимальный git-тег `v1.x` |
-| конкретный тег | `["-y", "github:CynepHy6/mcp-jira#v1.3.2"]` | зафиксировать версию |
-| exact semver | `["-y", "github:CynepHy6/mcp-jira#semver:1.3.2"]` | то же, через semver (ищет тег `v1.3.2`) |
-
-Пример с **конкретной версией**:
-
-```json
-"args": ["-y", "github:CynepHy6/mcp-jira#v1.3.2"]
-```
+| диапазон `v1.x` | `["-y", "github:CynepHy6/mcp-atlas#semver:^1"]` | по умолчанию; при старте MCP подтягивает максимальный git-тег `v1.x` |
+| конкретный тег | `["-y", "github:CynepHy6/mcp-atlas#v1.3.2"]` | зафиксировать версию |
+| exact semver | `["-y", "github:CynepHy6/mcp-atlas#semver:1.3.2"]` | то же, через semver (ищет тег `v1.3.2`) |
 
 **Обновление:** с `#semver:^1` новый релиз `v1.x` обычно подтягивается при старте MCP — reload Cursor чаще всего достаточно. С `#v1.3.2` версия зафиксирована: смените ref или удалите sandbox. Если не помогло — `npx clear-npx-cache` и снова reload MCP.
 
 ## Альтернатива: локальный клон
 
 ```bash
-git clone https://github.com/CynepHy6/mcp-jira.git
-cd mcp-jira
+git clone https://github.com/CynepHy6/mcp-atlas.git
+cd mcp-atlas
 cp .env.example .env   # заполнить креды
 npm install && npm run compile
 ```
@@ -75,7 +69,7 @@ npm install && npm run compile
   "mcpServers": {
     "jira": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-jira/build/index.js"]
+      "args": ["/absolute/path/to/mcp-atlas/build/index.js"]
     }
   }
 }

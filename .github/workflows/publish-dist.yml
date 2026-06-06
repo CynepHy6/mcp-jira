@@ -37,7 +37,7 @@ jobs:
 
       - name: Publish to dist branch and tag release
         env:
-          DIST_DIR: ${{ runner.temp }}/mcp-jira-dist
+          DIST_DIR: ${{ runner.temp }}/mcp-atlas-dist
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.pkg.outputs.version }}
         run: |

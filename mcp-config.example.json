@@ -2,7 +2,7 @@
     "mcpServers": {
         "jira": {
             "command": "npx",
-            "args": ["-y", "github:CynepHy6/mcp-jira#semver:^1"],
+            "args": ["-y", "github:CynepHy6/mcp-atlas#semver:^1"],
             "env": {
                 "JIRA_HOST": "https://jira.yourcompany.com",
                 "JIRA_USERNAME": "your_login",
